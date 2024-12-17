@@ -1,17 +1,22 @@
 use iced::widget::column;
-use iced::{Element, Theme};
+use iced::{Element, Font, Theme};
 
 mod components;
 mod custom_settings;
+mod styles;
 use components::{navbar, views};
 use custom_settings::window_settings;
 
 fn main() -> iced::Result {
+    let font_bytes = include_bytes!("fonts/NotoSansJP-Variable.ttf").as_slice();
     iced::application("Dashboard", Dashboard::update, Dashboard::view)
         .theme(Dashboard::theme)
         .window(window_settings::settings())
+        .font(font_bytes)
         .run()
 }
+
+const NOTO_SANS_JP: Font = Font::with_name("NOTO_SANS_JP");
 
 struct Dashboard {
     view: View,
@@ -19,7 +24,9 @@ struct Dashboard {
 
 impl Default for Dashboard {
     fn default() -> Self {
-        Self { view: View::Home }
+        Self {
+            view: View::StudentProfile,
+        }
     }
 }
 
@@ -29,7 +36,8 @@ impl Dashboard {
 
         let main_content = match self.view {
             View::Home => views::home_view(),
-            View::HelloWorld => views::students_view(),
+            View::Students => views::students_view(),
+            View::StudentProfile => views::student_profile(),
         };
 
         column![nav_bar_menu, main_content].into()
@@ -38,8 +46,9 @@ impl Dashboard {
     fn update(&mut self, message: Message) {
         match message {
             Message::NavigateToHome => self.view = View::Home,
-            Message::NavigateToStudents => self.view = View::HelloWorld,
+            Message::NavigateToStudents => self.view = View::Students,
             Message::Close => std::process::exit(0),
+            Message::NavigateToStudentProfile => self.view = View::StudentProfile,
         }
     }
 
@@ -50,12 +59,14 @@ impl Dashboard {
 
 enum View {
     Home,
-    HelloWorld,
+    Students,
+    StudentProfile,
 }
 
 #[derive(Debug, Clone)]
 pub enum Message {
     NavigateToHome,
     NavigateToStudents,
+    NavigateToStudentProfile,
     Close,
 }

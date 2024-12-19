@@ -41,6 +41,7 @@ pub fn custom_program_button(theme: &Theme, status: Status) -> Style {
     }
 }
 
+#[allow(dead_code)]
 pub fn student_row(theme: &Theme, status: Status) -> Style {
     match status {
         Status::Active | Status::Pressed => Style {

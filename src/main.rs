@@ -4,21 +4,25 @@ use iced::{Element, Font, Theme};
 mod components;
 mod custom_settings;
 mod models;
+mod operations;
 mod sample_data;
 mod styles;
+mod types;
 use components::{navbar, views};
 use custom_settings::window_settings;
 
+pub static NOTO_SANS_JP: Font = Font::with_name("Noto Sans JP");
+
 fn main() -> iced::Result {
-    let font_bytes = include_bytes!("fonts/NotoSansJP-Variable.ttf").as_slice();
+    let font_bytes_regular = include_bytes!("fonts/NotoSansJP-Regular.ttf").as_slice();
+    let font_bytes_bold = include_bytes!("fonts/NotoSansJP-Bold.ttf").as_slice();
     iced::application("Dashboard", Dashboard::update, Dashboard::view)
         .theme(Dashboard::theme)
         .window(window_settings::settings())
-        .font(font_bytes)
+        .font(font_bytes_regular)
+        .font(font_bytes_bold)
         .run()
 }
-
-const NOTO_SANS_JP: Font = Font::with_name("NOTO_SANS_JP");
 
 struct Dashboard {
     view: View,

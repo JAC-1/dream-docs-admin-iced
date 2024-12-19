@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 #[derive(Clone)]
 pub struct Student {
     pub kanji_name: String,

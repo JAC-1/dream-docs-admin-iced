@@ -1,6 +1,5 @@
 use crate::Message;
-use crate::NOTO_SANS_JP;
-use iced::font::Weight;
+use iced::advanced::graphics::core::font;
 use iced::widget::{button, column, container, rich_text, row, span, text};
 use iced::{Element, Fill, FillPortion, Font};
 
@@ -22,13 +21,13 @@ pub struct Document {
 }
 
 pub fn student_documents_table() -> Element<'static, Message> {
-    let bold_font = Font {
-        weight: Weight::Bold,
-        ..Default::default()
-    };
-
     let header_text = |text: String| {
-        rich_text([span(text).font(NOTO_SANS_JP).font(bold_font)]).width(FillPortion(1))
+        rich_text([span(text).font(Font {
+            family: iced::font::Family::Name("Noto Sans Jp"),
+            weight: font::Weight::Bold,
+            ..Default::default()
+        })])
+        .width(FillPortion(1))
     };
 
     let document_header = row![
@@ -68,7 +67,5 @@ fn status_indicator(status: &DocumentStatus) -> Element<'static, Message> {
         DocumentStatus::Declined => "Declined 🔴",
     };
 
-    rich_text([span(text).font(NOTO_SANS_JP)])
-        .width(FillPortion(1))
-        .into()
+    rich_text([span(text)]).width(FillPortion(1)).into()
 }

@@ -3,6 +3,8 @@ use iced::{Element, Font, Theme};
 
 mod components;
 mod custom_settings;
+mod models;
+mod sample_data;
 mod styles;
 use components::{navbar, views};
 use custom_settings::window_settings;

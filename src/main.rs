@@ -1,4 +1,3 @@
-use crate::operations::supabase_opp::all_students_info;
 use anyhow::Result;
 use iced::widget;
 use iced::{Element, Font, Task};
@@ -14,6 +13,7 @@ mod types;
 use components::{navbar, views};
 use custom_settings::window_settings;
 use models::supabase_models::StudentProfileData;
+use operations::SupabaseQuery;
 
 pub static NOTO_SANS_JP: Font = Font::with_name("Noto Sans JP");
 
@@ -31,8 +31,17 @@ fn main() -> iced::Result {
 enum Dashboard {
     Loading,
     HomeView,
-    StudentsView { students: Vec<StudentProfileData> },
-    StudentProfileview { student: StudentProfileData },
+    //TODO: Implement students in the view
+    #[allow(dead_code)]
+    StudentsView {
+        students: Vec<StudentProfileData>,
+    },
+
+    // TODO: Implement student profile data in the view
+    #[allow(dead_code)]
+    StudentProfileview {
+        student: StudentProfileData,
+    },
     Errored(String),
 }
 
@@ -56,13 +65,15 @@ impl Dashboard {
                     .enable_all()
                     .build()
                     .unwrap();
-                rt.block_on(all_students_info())
+                rt.block_on(SupabaseQuery::all_students_info())
                     .map_err(|err| err.to_string())
             },
             Message::StudentsLoaded,
         )
-        // data and adds it to the enum
     }
+
+    // TODO: Implement this into the views
+    #[allow(dead_code)]
     fn title(&self) -> String {
         match self {
             Dashboard::Loading => String::from("Loading - Dashboard"),

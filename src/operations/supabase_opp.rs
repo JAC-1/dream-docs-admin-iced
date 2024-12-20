@@ -7,23 +7,36 @@ use uuid::Uuid;
 
 // let table_headers = ["学籍番号", "表示名", "クラス", "プログラム", "書類完了"];
 
-pub async fn all_students_info() -> Result<Vec<StudentProfileData>> {
-    dotenv().ok();
-    let url = std::env::var("SUPABASE_URL")?;
-    let key = std::env::var("SUPABASE_KEY")?;
-    let client = Postgrest::new(url).insert_header("apiKey", key.as_str());
-    let query = client
-        .from("students")
-        .select("display_id,display_name,class,program")
-        .order("id")
-        .execute()
-        .await?;
-    let query_text = query
-        .text()
-        .await
-        .map_err(|e| anyhow!("Failed to get text response from query: {}", e))?;
-    let raw_students_data: Vec<StudentProfileData> = serde_json::from_str(&query_text)?;
-    Ok(raw_students_data)
+pub struct SupabaseQuery;
+
+impl SupabaseQuery {
+    fn check_for_valid_url(url: String) -> String {
+        if !url.contains("/rest/v1") {
+            format!("{}/rest/v1", url)
+        } else {
+            url
+        }
+    }
+
+    pub async fn all_students_info() -> Result<Vec<StudentProfileData>> {
+        dotenv().ok();
+        let url = std::env::var("SUPABASE_URL")?;
+        let url = SupabaseQuery::check_for_valid_url(url);
+        let key = std::env::var("SUPABASE_KEY")?;
+        let client = Postgrest::new(url).insert_header("apiKey", key.as_str());
+        let query = client
+            .from("students")
+            .select("display_id,display_name,class,program")
+            .order("id")
+            .execute()
+            .await?;
+        let query_text = query
+            .text()
+            .await
+            .map_err(|e| anyhow!("Failed to get text response from query: {}", e))?;
+        let raw_students_data: Vec<StudentProfileData> = serde_json::from_str(&query_text)?;
+        Ok(raw_students_data)
+    }
 }
 
 // async fn all_student_data() -> Result<StudentData> {}
@@ -148,15 +161,15 @@ mod tests {
     use super::*;
     use anyhow::Result;
 
-    // #[tokio::test]
-    // async fn test_all_table_data() -> Result<()> {
-    //     let result = all_table_data().await?;
-    //     Ok(assert!(result.classes.len() > 0))
-    // }
+    #[tokio::test]
+    async fn test_all_table_data() -> Result<()> {
+        let result = all_table_data().await?;
+        Ok(assert!(result.classes.len() > 0))
+    }
 
     #[tokio::test]
     async fn test_student_info() -> Result<()> {
-        all_students_info();
+        let _ = SupabaseQuery::all_students_info();
         Ok(())
     }
     // #[tokio::test]

@@ -1,11 +1,17 @@
+use crate::models::supabase_models::StudentProfileData;
 use crate::{Message, NOTO_SANS_JP};
 use iced::advanced::graphics::core::font;
-use iced::widget::{button, horizontal_rule, row, text, vertical_rule, vertical_space, Column};
+use iced::widget::{button, horizontal_rule, row, text, Column};
 use iced::Alignment::Center;
 use iced::Length::{Fill, FillPortion};
 use iced::{Element, Font};
 
-pub fn students_table() -> Element<'static, Message> {
+// You can leverage the From trait to build Padding conveniently:
+// let padding = Padding::from(20);              // 20px on all sides
+// let padding = Padding::from([10, 20]);        // top/bottom, left/right
+
+pub fn students_table(// student_profile_data: Option<StudentProfileData>,
+) -> Element<'static, Message> {
     fn create_header_text(text: String) -> Element<'static, Message> {
         text::Text::new(text)
             .size(20)
@@ -18,14 +24,7 @@ pub fn students_table() -> Element<'static, Message> {
             .into()
     }
 
-    let table_headers = [
-        "名前",
-        "かな",
-        "ローマ字",
-        "クラス",
-        "プログラム",
-        "書類完了",
-    ];
+    let table_headers = ["学籍番号", "表示名", "クラス", "プログラム", "書類完了"];
 
     let table_header = row(table_headers
         .iter()
@@ -35,21 +34,25 @@ pub fn students_table() -> Element<'static, Message> {
     .width(Fill)
     .padding(3);
 
-    let mut table = Column::new().push(table_header).push(horizontal_rule(20));
-    // Using the sample student data directly
-    table = table.push(
+    let test_student = StudentProfileData {
+        display_id: "123980981".to_string(),
+        display_name: "Taro".to_string(),
+        class: "Amazing Class".to_string(),
+        program: "Amazing Program".to_string(),
+    };
+
+    fn create_student_row(student: StudentProfileData) -> Element<'static, Message> {
         button(row![
-            text!("山田太郎").font(NOTO_SANS_JP).width(FillPortion(1)),
-            text!("やまだたろう") // Kana name added
+            text(student.display_id.clone())
                 .font(NOTO_SANS_JP)
                 .width(FillPortion(1)),
-            text!("Taro Yamada")
+            text(student.display_name.clone())
                 .font(NOTO_SANS_JP)
                 .width(FillPortion(1)),
-            text!("Amazing Class")
+            text(student.class.clone())
                 .font(NOTO_SANS_JP)
                 .width(FillPortion(1)),
-            text!("Amazing Program")
+            text(student.program.clone())
                 .font(NOTO_SANS_JP)
                 .width(FillPortion(1)),
             text!("未完了") // Document status added
@@ -57,7 +60,11 @@ pub fn students_table() -> Element<'static, Message> {
                 .width(FillPortion(1)),
         ])
         .style(iced::widget::button::secondary)
-        .on_press(Message::NavigateToStudentProfile),
-    );
-    table.into()
+        .on_press(Message::NavigatetoStudentProfile(student))
+        .into()
+    }
+
+    let table = Column::new().push(table_header).push(horizontal_rule(20));
+    let test_row = create_student_row(test_student);
+    table.push(test_row).into()
 }

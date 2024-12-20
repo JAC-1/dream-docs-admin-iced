@@ -1,1 +1,1 @@
-mod supabase_opp;
+pub mod supabase_opp;

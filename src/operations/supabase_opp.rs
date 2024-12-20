@@ -6,6 +6,25 @@ use dotenv::dotenv;
 use postgrest::Postgrest;
 use uuid::Uuid;
 
+// let table_headers = ["学籍番号", "表示名", "クラス", "プログラム", "書類完了"];
+
+pub async fn all_students_info() -> Result<Vec<StudentProfileData>> {
+    dotenv().ok();
+    let url = std::env::var("SUPABASE_URL")?;
+    let key = std::env::var("SUPABASE_KEY")?;
+    let client = Postgrest::new(url).insert_header("apiKey", key.as_str());
+    let query = client
+        .from("students")
+        .select("display_id,display_name,class,program")
+        .order("id")
+        .execute()
+        .await?;
+    let raw_students_data: Vec<StudentProfileData> = serde_json::from_str(&query.text().await?)?;
+    Ok(raw_students_data)
+}
+
+// async fn all_student_data() -> Result<StudentData> {}
+
 #[allow(dead_code)]
 async fn all_table_data() -> Result<QueryableResponse> {
     dotenv().ok();

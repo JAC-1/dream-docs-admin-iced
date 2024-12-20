@@ -1,4 +1,3 @@
-#[allow(dead_code, unused_imports, unused_variables)]
 use crate::models::supabase_models::*;
 use crate::types::ActiveStatus;
 use anyhow::{anyhow, Result};
@@ -19,7 +18,11 @@ pub async fn all_students_info() -> Result<Vec<StudentProfileData>> {
         .order("id")
         .execute()
         .await?;
-    let raw_students_data: Vec<StudentProfileData> = serde_json::from_str(&query.text().await?)?;
+    let query_text = query
+        .text()
+        .await
+        .map_err(|e| anyhow!("Failed to get text response from query: {}", e))?;
+    let raw_students_data: Vec<StudentProfileData> = serde_json::from_str(&query_text)?;
     Ok(raw_students_data)
 }
 
@@ -140,30 +143,35 @@ async fn add_student(display_name: String, display_id: String) -> Result<()> {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use crate::operations::{add_student, all_table_data};
-//     use anyhow::Result;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use anyhow::Result;
 
-//     #[tokio::test]
-//     async fn test_all_table_data() -> Result<()> {
-//         let result = all_table_data().await?;
-//         Ok(assert!(result.classes.len() > 0))
-//     }
+    // #[tokio::test]
+    // async fn test_all_table_data() -> Result<()> {
+    //     let result = all_table_data().await?;
+    //     Ok(assert!(result.classes.len() > 0))
+    // }
 
-//     #[tokio::test]
-//     async fn test_add_random_student() -> Result<()> {
-//         let name = "Test Student".to_string();
-//         let display_id = format!("{}-{}", "test", uuid::Uuid::new_v4().to_string());
-//         add_student(name, display_id).await?;
-//         Ok(())
-//     }
+    #[tokio::test]
+    async fn test_student_info() -> Result<()> {
+        all_students_info();
+        Ok(())
+    }
+    // #[tokio::test]
+    // async fn test_add_random_student() -> Result<()> {
+    //     let name = "Test Student".to_string();
+    //     let display_id = format!("{}-{}", "test", uuid::Uuid::new_v4().to_string());
+    //     add_student(name, display_id).await?;
+    //     Ok(())
+    // }
 
-//     #[tokio::test]
-//     async fn test_add_student_returns_error() -> Result<()> {
-//         let name = "Test Student".to_string();
-//         let display_id = "maybe".to_string();
-//         assert!(add_student(name, display_id).await.is_err());
-//         Ok(())
-//     }
-// }
+    // #[tokio::test]
+    // async fn test_add_student_returns_error() -> Result<()> {
+    //     let name = "Test Student".to_string();
+    //     let display_id = "maybe".to_string();
+    //     assert!(add_student(name, display_id).await.is_err());
+    //     Ok(())
+    // }
+}

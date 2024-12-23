@@ -12,8 +12,6 @@ pub use class::Class;
 pub use downloads_cache::DownloadCacheEntry;
 pub use file::File;
 pub use file_key::FileKey;
-pub use insert_error_response::InsertErrorResponse;
 pub use program::Program;
-pub use queryable_response::QueryableResponse;
 pub use student::Student;
 pub use student_profile_data::StudentProfileData;

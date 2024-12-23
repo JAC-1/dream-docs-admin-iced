@@ -61,11 +61,12 @@ impl Dashboard {
     fn load_students() -> Task<Message> {
         Task::perform(
             async {
+                let supabase = SupabaseQuery::new();
                 let rt = runtime::Builder::new_current_thread()
                     .enable_all()
                     .build()
                     .unwrap();
-                rt.block_on(SupabaseQuery::all_students_info())
+                rt.block_on(supabase.all_students_info())
                     .map_err(|err| err.to_string())
             },
             Message::StudentsLoaded,

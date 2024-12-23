@@ -2,6 +2,7 @@ use super::{
     document_table::student_documents_table, student_profile_info::profile_info,
     students_table::students_table,
 };
+use crate::models::supabase_models::StudentProfileData;
 use crate::styles::button_styles::custom_program_button;
 use crate::Message;
 use iced::widget::text::Wrapping;
@@ -10,7 +11,6 @@ use iced::{Element, Fill};
 
 pub fn home_view() -> Element<'static, Message> {
     let card = |title: String, description: String| {
-        // General card to display programs (Dream builder, Term, Long Term)
         Button::new(column![
             Text::new(title).size(20).center().wrapping(Wrapping::Word),
             Text::new(description).size(16).wrapping(Wrapping::Word),
@@ -53,8 +53,8 @@ pub fn home_view() -> Element<'static, Message> {
     Container::new(cards).center_x(Fill).center_y(Fill).into()
 }
 
-pub fn students_view() -> Element<'static, Message> {
-    let table = students_table();
+pub fn students_view(student_profile_data: &Vec<StudentProfileData>) -> Element<'static, Message> {
+    let table = students_table(student_profile_data);
     Container::new(table)
         .width(Fill)
         .center_x(Fill)
@@ -62,8 +62,8 @@ pub fn students_view() -> Element<'static, Message> {
         .into()
 }
 
-pub fn student_profile() -> Element<'static, Message> {
-    let profile_container = Container::new(profile_info()).max_height(400);
+pub fn student_profile(student: StudentProfileData) -> Element<'static, Message> {
+    let profile_container = Container::new(profile_info(student)).max_height(400);
     let document_table = student_documents_table();
     container(column![profile_container, document_table])
         .center_x(Fill)

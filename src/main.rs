@@ -119,9 +119,9 @@ impl Dashboard {
 
         let content = match self {
             Dashboard::Loading => widget::text("Loading..").size(50).into(),
-            Dashboard::StudentsView { .. } => views::students_view(),
+            Dashboard::StudentsView { students } => views::students_view(students),
             Dashboard::HomeView => views::home_view(),
-            Dashboard::StudentProfileview { .. } => views::student_profile(),
+            Dashboard::StudentProfileview { student } => views::student_profile(student.clone()),
             Dashboard::Errored(error_message) => widget::column![
                 widget::text("Something went wrong..").size(40),
                 widget::text(error_message),

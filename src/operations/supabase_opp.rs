@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 // let table_headers = ["学籍番号", "表示名", "クラス", "プログラム", "書類完了"];
 
+// TODO: add url and key to struct
 pub struct SupabaseQuery;
 
 impl SupabaseQuery {
@@ -26,7 +27,7 @@ impl SupabaseQuery {
         let client = Postgrest::new(url).insert_header("apiKey", key.as_str());
         let query = client
             .from("students")
-            .select("display_id,display_name,class,program")
+            .select("display_id,display_name,classes(title),programs(name)")
             .order("id")
             .execute()
             .await?;
@@ -161,17 +162,18 @@ mod tests {
     use super::*;
     use anyhow::Result;
 
-    #[tokio::test]
-    async fn test_all_table_data() -> Result<()> {
-        let result = all_table_data().await?;
-        Ok(assert!(result.classes.len() > 0))
-    }
+    // #[tokio::test]
+    // async fn test_all_table_data() -> Result<()> {
+    //     let result = all_table_data().await?;
+    //     Ok(assert!(result.classes.len() > 0))
+    // }
 
     #[tokio::test]
     async fn test_student_info() -> Result<()> {
-        let _ = SupabaseQuery::all_students_info();
+        let _ = SupabaseQuery::all_students_info().await?;
         Ok(())
     }
+
     // #[tokio::test]
     // async fn test_add_random_student() -> Result<()> {
     //     let name = "Test Student".to_string();

@@ -13,11 +13,18 @@ mod types;
 use components::{navbar, views};
 use custom_settings::window_settings;
 use models::supabase_models::StudentProfileData;
+use once_cell::sync::Lazy;
 use operations::SupabaseQuery;
 
 pub static NOTO_SANS_JP: Font = Font::with_name("Noto Sans JP");
+static SUPABASE_CLIENT: Lazy<SupabaseQuery> = Lazy::new(|| SupabaseQuery::new());
 
 fn main() -> iced::Result {
+    // let runtime = runtime::Builder::new_current_thread()
+    //     .enable_all()
+    //     .build()
+    //     .unwrap();
+    // let _guard = runtime.enter();
     let font_bytes_regular = include_bytes!("fonts/NotoSansJP-Regular.ttf").as_slice();
     let font_bytes_bold = include_bytes!("fonts/NotoSansJP-Bold.ttf").as_slice();
     iced::application("Dashboard", Dashboard::update, Dashboard::view)
@@ -61,12 +68,9 @@ impl Dashboard {
     fn load_students() -> Task<Message> {
         Task::perform(
             async {
-                let supabase = SupabaseQuery::new();
-                let rt = runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .unwrap();
-                rt.block_on(supabase.all_students_info())
+                SUPABASE_CLIENT
+                    .all_students_info()
+                    .await
                     .map_err(|err| err.to_string())
             },
             Message::StudentsLoaded,

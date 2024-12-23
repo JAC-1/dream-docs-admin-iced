@@ -5,7 +5,6 @@ use postgrest::Postgrest;
 
 // let table_headers = ["学籍番号", "表示名", "クラス", "プログラム", "書類完了"];
 
-// TODO: add url and key to struct
 pub struct SupabaseQuery {
     client: Postgrest,
 }
@@ -37,6 +36,18 @@ impl SupabaseQuery {
             .map_err(|e| anyhow!("Failed to get text response from query: {}", e))?;
         let raw_students_data: Vec<StudentProfileData> = serde_json::from_str(&query_text)?;
         Ok(raw_students_data)
+    }
+
+    pub async fn get_student_document_info(&self, student_id: &str) -> Result<Vec<File>> {
+        let query = self
+            .client
+            .from("file_cache")
+            .select("*")
+            .eq("user_id", student_id)
+            .execute()
+            .await?;
+        let file_list: Vec<File> = serde_json::from_str(&query.text().await?)?;
+        Ok(file_list)
     }
 }
 
@@ -98,10 +109,23 @@ mod tests {
     use super::*;
     use anyhow::Result;
 
+    fn setup() -> SupabaseQuery {
+        SupabaseQuery::new()
+    }
+
     #[tokio::test]
     async fn test_student_info() -> Result<()> {
-        let supabase = SupabaseQuery::new();
+        let supabase = setup();
         let _ = supabase.all_students_info().await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_get_file_cache() -> Result<()> {
+        let supabase = setup();
+        let _ = supabase
+            .get_student_document_info("user_2nH3tajCHetQke5TzHQG6onKWcV")
+            .await?;
         Ok(())
     }
 }

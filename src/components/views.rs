@@ -2,7 +2,7 @@ use super::{
     document_table::student_documents_table, student_profile_info::profile_info,
     students_table::students_table,
 };
-use crate::models::supabase_models::StudentProfileData;
+use crate::models::supabase_models::*;
 use crate::styles::button_styles::custom_program_button;
 use crate::Message;
 use iced::widget::text::Wrapping;
@@ -62,7 +62,10 @@ pub fn students_view(student_profile_data: &Vec<StudentProfileData>) -> Element<
         .into()
 }
 
-pub fn student_profile(student: StudentProfileData) -> Element<'static, Message> {
+pub fn student_profile(
+    student: &StudentProfileData,
+    _docs: &Vec<File>,
+) -> Element<'static, Message> {
     let profile_container = Container::new(profile_info(student)).max_height(400);
     let document_table = student_documents_table();
     container(column![profile_container, document_table])

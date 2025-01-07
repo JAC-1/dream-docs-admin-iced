@@ -1,4 +1,5 @@
-use crate::models::supabase_models::StudentProfileData;
+use crate::models::supabase_models::*;
+
 use crate::{Message, NOTO_SANS_JP};
 use iced::advanced::graphics::core::font;
 use iced::widget::{button, horizontal_rule, row, text, Column, Scrollable};
@@ -70,7 +71,7 @@ pub fn students_table(
                 .width(FillPortion(1)),
         ])
         .style(iced::widget::button::secondary)
-        .on_press(Message::NavigatetoStudentProfile(student.clone()))
+        .on_press(Message::StartFetchStudentDocs(student.clone()))
         .padding(padding)
         .into()
     }

@@ -1,7 +1,5 @@
 use anyhow::Result;
-use iced::widget;
-use iced::{Element, Font, Task};
-use tokio::runtime;
+use iced::{widget, Element, Font, Task};
 
 mod components;
 mod custom_settings;
@@ -12,7 +10,7 @@ mod styles;
 mod types;
 use components::{navbar, views};
 use custom_settings::window_settings;
-use models::supabase_models::StudentProfileData;
+use models::supabase_models::*;
 use once_cell::sync::Lazy;
 use operations::SupabaseQuery;
 
@@ -20,11 +18,6 @@ pub static NOTO_SANS_JP: Font = Font::with_name("Noto Sans JP");
 static SUPABASE_CLIENT: Lazy<SupabaseQuery> = Lazy::new(|| SupabaseQuery::new());
 
 fn main() -> iced::Result {
-    // let runtime = runtime::Builder::new_current_thread()
-    //     .enable_all()
-    //     .build()
-    //     .unwrap();
-    // let _guard = runtime.enter();
     let font_bytes_regular = include_bytes!("fonts/NotoSansJP-Regular.ttf").as_slice();
     let font_bytes_bold = include_bytes!("fonts/NotoSansJP-Bold.ttf").as_slice();
     iced::application("Dashboard", Dashboard::update, Dashboard::view)
@@ -36,34 +29,34 @@ fn main() -> iced::Result {
 
 #[derive(Debug)]
 enum Dashboard {
-    Loading,
+    StudentProfileDataLoading,
+    StudentDocsLoading,
     HomeView,
-    //TODO: Implement students in the view
-    #[allow(dead_code)]
     StudentsView {
         students: Vec<StudentProfileData>,
     },
-
-    // TODO: Implement student profile data in the view
-    #[allow(dead_code)]
     StudentProfileview {
         student: StudentProfileData,
+        docs: Vec<File>,
     },
+
     Errored(String),
 }
 
 #[derive(Debug, Clone)]
 pub enum Message {
+    StartFetchStudentDocs(StudentProfileData),
     StudentsLoaded(Result<Vec<StudentProfileData>, String>),
+    FetchStudentDocs(Result<Vec<File>, String>, StudentProfileData),
     NavigateToHome,
     NavigateToStudents,
-    NavigatetoStudentProfile(StudentProfileData),
+    NavigatetoStudentProfile(StudentProfileData, Vec<File>),
     Close,
 }
 
 impl Dashboard {
     fn new() -> (Self, Task<Message>) {
-        (Self::Loading, Self::load_students())
+        (Self::StudentProfileDataLoading, Self::load_students())
     }
     fn load_students() -> Task<Message> {
         Task::perform(
@@ -71,17 +64,30 @@ impl Dashboard {
                 SUPABASE_CLIENT
                     .all_students_info()
                     .await
-                    .map_err(|err| err.to_string())
+                    .map_err(|e| e.to_string())
             },
             Message::StudentsLoaded,
         )
     }
 
-    // TODO: Implement this into the views
+    fn get_student_docs(student_id: String, student: StudentProfileData) -> Task<Message> {
+        Task::perform(
+            async move {
+                SUPABASE_CLIENT
+                    .get_student_document_info(student_id)
+                    .await
+                    .map_err(|e| e.to_string())
+            },
+            move |result| Message::FetchStudentDocs(result, student.clone()),
+        )
+    }
+
+    // TODO: Implement this into the vsiews
     #[allow(dead_code)]
     fn title(&self) -> String {
         match self {
-            Dashboard::Loading => String::from("Loading - Dashboard"),
+            Dashboard::StudentDocsLoading => String::new(),
+            Dashboard::StudentProfileDataLoading => String::new(),
             Dashboard::HomeView => String::from("Home - Dashboard"),
             Dashboard::StudentsView { .. } => String::from("Students - Dashboard"),
             Dashboard::StudentProfileview { .. } => String::from("Sudent Profile - Dashboard"),
@@ -95,6 +101,18 @@ impl Dashboard {
                 *self = Dashboard::StudentsView { students };
                 Task::none()
             }
+            Message::StartFetchStudentDocs(student) => {
+                *self = Dashboard::StudentDocsLoading;
+                Self::get_student_docs(student.display_id.clone(), student)
+            }
+            Message::FetchStudentDocs(Ok(docs), student) => {
+                *self = Dashboard::StudentProfileview { student, docs };
+                Task::none()
+            }
+            Message::FetchStudentDocs(Err(error), _) => {
+                *self = Dashboard::Errored(error);
+                Task::none()
+            }
             Message::StudentsLoaded(Err(error)) => {
                 *self = Dashboard::Errored(error);
                 Task::none()
@@ -104,14 +122,14 @@ impl Dashboard {
                 Task::none()
             }
             Message::NavigateToStudents => match self {
-                Dashboard::Loading => Task::none(),
+                Dashboard::StudentProfileDataLoading => Task::none(),
                 _ => {
-                    *self = Dashboard::Loading;
+                    *self = Dashboard::StudentProfileDataLoading;
                     Self::load_students()
                 }
             },
-            Message::NavigatetoStudentProfile(student) => {
-                *self = Dashboard::StudentProfileview { student };
+            Message::NavigatetoStudentProfile(student, docs) => {
+                *self = Dashboard::StudentProfileview { student, docs };
                 Task::none()
             }
             Message::Close => {
@@ -119,14 +137,20 @@ impl Dashboard {
             }
         }
     }
+
     fn view(&self) -> Element<Message> {
         let nav_bar = navbar::nav_bar();
 
         let content = match self {
-            Dashboard::Loading => widget::text("Loading..").size(50).into(),
+            Dashboard::StudentDocsLoading => widget::text("Loading..").size(50).center().into(),
+            Dashboard::StudentProfileDataLoading => {
+                widget::text("Loading..").size(50).center().into()
+            }
             Dashboard::StudentsView { students } => views::students_view(students),
             Dashboard::HomeView => views::home_view(),
-            Dashboard::StudentProfileview { student } => views::student_profile(student.clone()),
+            Dashboard::StudentProfileview { student, docs } => {
+                views::student_profile(student, docs)
+            }
             Dashboard::Errored(error_message) => widget::column![
                 widget::text("Something went wrong..").size(40),
                 widget::text(error_message),

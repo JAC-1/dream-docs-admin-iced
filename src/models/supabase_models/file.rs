@@ -2,7 +2,7 @@ use crate::types::{FileStatus, TaskType};
 use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Clone, Deserialize)]
 pub struct File {
     id: String,
     document_id: String,

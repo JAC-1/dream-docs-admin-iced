@@ -5,8 +5,8 @@ use iced::widget::{center, column, container, image, row, text, Container};
 use iced::Length::FillPortion;
 use iced::{Element, Font};
 
-pub fn profile_info(student: StudentProfileData) -> Element<'static, Message> {
-    let student_info_column = |student: StudentProfileData| {
+pub fn profile_info(student: &StudentProfileData) -> Element<'static, Message> {
+    let student_info_column = |student: &StudentProfileData| {
         let make_text =
             // |content: String, size: u16| rich_text([span(content).font(NOTO_SANS_JP).size(size)]);
             |content: String, size: u16|  text::Text::new(content).font(Font {

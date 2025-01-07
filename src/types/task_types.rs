@@ -1,6 +1,6 @@
 use serde::Deserializer;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum TaskType {
     StudyAbroadAgreement,
     PersonalInformationWaiver,

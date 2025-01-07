@@ -38,12 +38,12 @@ impl SupabaseQuery {
         Ok(raw_students_data)
     }
 
-    pub async fn get_student_document_info(&self, student_id: &str) -> Result<Vec<File>> {
+    pub async fn get_student_document_info(&self, student_id: String) -> Result<Vec<File>> {
         let query = self
             .client
             .from("file_cache")
             .select("*")
-            .eq("user_id", student_id)
+            .eq("user_id", &student_id)
             .execute()
             .await?;
         let file_list: Vec<File> = serde_json::from_str(&query.text().await?)?;
@@ -124,7 +124,7 @@ mod tests {
     async fn test_get_file_cache() -> Result<()> {
         let supabase = setup();
         let _ = supabase
-            .get_student_document_info("user_2nH3tajCHetQke5TzHQG6onKWcV")
+            .get_student_document_info("user_2nH3tajCHetQke5TzHQG6onKWcV".to_owned())
             .await?;
         Ok(())
     }

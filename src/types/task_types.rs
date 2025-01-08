@@ -29,7 +29,7 @@ impl TaskType {
         }
     }
 
-    fn to_str(&self) -> &str {
+    pub fn to_str(&self) -> &str {
         match self {
             TaskType::StudyAbroadAgreement => "Study_Abroad_Agreement",
             TaskType::PersonalInformationWaiver => "Personal_Information_Waiver",

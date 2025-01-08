@@ -58,6 +58,7 @@ impl Dashboard {
     fn new() -> (Self, Task<Message>) {
         (Self::StudentProfileDataLoading, Self::load_students())
     }
+
     fn load_students() -> Task<Message> {
         Task::perform(
             async {
@@ -81,6 +82,8 @@ impl Dashboard {
             move |result| Message::FetchStudentDocs(result, student.clone()),
         )
     }
+
+    fn get_student_doc(doc_id: String) -> Task<Message> {}
 
     // TODO: Implement this into the vsiews
     #[allow(dead_code)]

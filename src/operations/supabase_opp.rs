@@ -3,8 +3,6 @@ use anyhow::{anyhow, Result};
 use dotenv::dotenv;
 use postgrest::Postgrest;
 
-// let table_headers = ["学籍番号", "表示名", "クラス", "プログラム", "書類完了"];
-
 pub struct SupabaseQuery {
     client: Postgrest,
 }
@@ -48,6 +46,18 @@ impl SupabaseQuery {
             .await?;
         let file_list: Vec<File> = serde_json::from_str(&query.text().await?)?;
         Ok(file_list)
+    }
+
+    pub async fn fetch_key(&self, doc_id: String) -> Result<String> {
+        let query = self
+            .client
+            .from("file_keys")
+            .select("*")
+            .eq("document_id", &doc_id)
+            .execute()
+            .await?;
+        let file_key_json: Vec<FileKey> = serde_json::from_str(&query.text().await?)?;
+        Ok(file_key_json[0].encrypted_key.clone())
     }
 }
 
@@ -126,6 +136,16 @@ mod tests {
         let _ = supabase
             .get_student_document_info("user_2nH3tajCHetQke5TzHQG6onKWcV".to_owned())
             .await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_get_file_key() -> Result<()> {
+        let supabase = setup();
+        let resp = supabase
+            .fetch_key("ed98a0d4-3cc9-492a-a2b7-3ece0e4d87bc".to_owned())
+            .await?;
+        println!("{}", resp);
         Ok(())
     }
 }

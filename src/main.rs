@@ -1,3 +1,5 @@
+use std::fmt::Binary;
+
 use anyhow::Result;
 use iced::{widget, Element, Font, Task};
 
@@ -45,9 +47,11 @@ enum Dashboard {
 
 #[derive(Debug, Clone)]
 pub enum Message {
+    // StartFetchStudentDoc(File),
+    // FetchStudentDoc(Vec<u8>),
     StartFetchStudentDocs(StudentProfileData),
-    StudentsLoaded(Result<Vec<StudentProfileData>, String>),
     FetchStudentDocs(Result<Vec<File>, String>, StudentProfileData),
+    StudentsLoaded(Result<Vec<StudentProfileData>, String>),
     NavigateToHome,
     NavigateToStudents,
     NavigatetoStudentProfile(StudentProfileData, Vec<File>),
@@ -83,7 +87,20 @@ impl Dashboard {
         )
     }
 
-    fn get_student_doc(doc_id: String) -> Task<Message> {}
+    // fn get_student_doc(doc_id: String) -> Task<Message> {
+    //     Task::perform(
+    //         async move {
+    //             let enc_key = SUPABASE_CLIENT
+    //                 .fetch_key(doc_id)
+    //                 .await
+    //                 .map_err(|e| e.to_string());
+    //             let enc_file = TURSO_CLIENT.fetch_file(doc_id);
+    //             let key = decrypt_key(enc_key);
+    //             decrypt_bin(key, enc_file)
+    //         },
+    //         move |result| Message::FetchStudentDoc(result),
+    //     )
+    // }
 
     // TODO: Implement this into the vsiews
     #[allow(dead_code)]

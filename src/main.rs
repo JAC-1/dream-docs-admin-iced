@@ -14,7 +14,7 @@ use components::{navbar, views};
 use custom_settings::window_settings;
 use models::supabase_models::*;
 use once_cell::sync::Lazy;
-use operations::SupabaseQuery;
+use operations::{SupabaseQuery, TursoQuery};
 
 pub static NOTO_SANS_JP: Font = Font::with_name("Noto Sans JP");
 static SUPABASE_CLIENT: Lazy<SupabaseQuery> = Lazy::new(|| SupabaseQuery::new());
@@ -94,7 +94,8 @@ impl Dashboard {
     //                 .fetch_key(doc_id)
     //                 .await
     //                 .map_err(|e| e.to_string());
-    //             let enc_file = TURSO_CLIENT.fetch_file(doc_id);
+    //             let turso = TursoQuery::new().await;
+    //             let enc_file = turso.get_file(doc_id);
     //             let key = decrypt_key(enc_key);
     //             decrypt_bin(key, enc_file)
     //         },

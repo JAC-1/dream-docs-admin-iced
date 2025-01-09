@@ -7,7 +7,7 @@ pub struct TursoQuery {
 }
 
 impl TursoQuery {
-    async fn new() -> Self {
+    pub async fn new() -> Self {
         dotenv().ok();
         let url = std::env::var("TURSO_DB_URL").expect("TURSO_DB_URL expected but none found.");
         let token =
@@ -20,7 +20,7 @@ impl TursoQuery {
             },
         }
     }
-    async fn get_file(self, doc_id: String) -> Result<String, String> {
+    pub async fn get_file(self, doc_id: String) -> Result<String, String> {
         match self.db {
             Ok(db) => {
                 let conn = db

@@ -17,3 +17,22 @@ pub struct File {
     pub created_at: DateTime<Local>,
     pub updated_at: DateTime<Local>,
 }
+
+impl Default for File {
+    fn default() -> Self {
+        Self {
+            document_id: "".to_string(),
+            file_path: "".to_string(),
+            file_name: "".to_string(),
+            file_size: 0,
+            task_type: TaskType::StudyAbroadAgreement,
+            mime_type: "".to_string(),
+            status: FileStatus::Declined,
+            status_message: None,
+            user_id: "".to_owned(),
+            processing_attempts: 0,
+            created_at: Local::now(),
+            updated_at: Local::now(),
+        }
+    }
+}

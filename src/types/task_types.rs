@@ -18,7 +18,7 @@ impl TaskType {
         match s {
             "Study_Abroad_Agreement" => Some(TaskType::StudyAbroadAgreement),
             "Personal_Information_Waiver" => Some(TaskType::PersonalInformationWaiver),
-            "Why_I_want_to_Study_in_Canada" => Some(TaskType::WhyStudyInCanada),
+            "Why_Study_In_Canada" => Some(TaskType::WhyStudyInCanada),
             "Homestay_Letter" => Some(TaskType::HomestayLetter),
             "Passport" => Some(TaskType::Passport),
             "Headshot" => Some(TaskType::Headshot),
@@ -59,11 +59,7 @@ impl<'de> serde::Deserialize<'de> for TaskType {
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        TaskType::from_str(&s).ok_or_else(|| {
-            serde::de::Error::custom(format!(
-                "invalid TaskType: {}. Must be 'active' or 'inactive'",
-                s
-            ))
-        })
+        TaskType::from_str(&s)
+            .ok_or_else(|| serde::de::Error::custom(format!("Error converting TaskType to String. Got {}, expected one of: Study_Abroad_Agreement, Personal_Information_Waiver, Why_Study_In_Canada, Homestay_Letter, Passport, Headshot, Study_Abroad_Application, Immunization_Record, Family_Images . ", s)))
     }
 }

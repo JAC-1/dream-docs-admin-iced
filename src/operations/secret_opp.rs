@@ -3,37 +3,80 @@ use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use openssl::rsa::{self, Rsa};
 
 use std::{
-    fs::{write, File},
     io::Read,
-    path::Path,
 };
 
-pub struct Decrypter {
+pub struct Decrypter<'a> {
     decrypted_key: Vec<u8>,
     encrypted_data: Vec<u8>,
-    decrypted_data: Vec<u8>,
-    file_extension: String,
-    file_name: String,
+    pub decrypted_data: Vec<u8>,
+    file_extension: &'a str,
+    file_name: &'a str,
 }
 
-impl Decrypter {
+impl<'a> Decrypter<'a> {
+    /// Create a new `Decrypter` instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `encrypted_key` - The base64-encoded encrypted key for the file.
+    /// * `encrypted_data` - The base64-encoded encrypted data from the database.
+    /// * `file_extension` - The file extension of the decrypted file.
+    /// * `file_name` - The name of the decrypted file.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing a `Decrypter` instance, or an error if either the
+    /// `encrypted_key` or `encrypted_data` are invalid.
     pub fn new(
-        encrypted_key: String,
-        encrypted_data: String,
-        file_extension: String,
-        file_name: String,
+        encrypted_key: &'a str,
+        encrypted_data: Option<&'a str>,
+        file_extension: &'a str,
+        file_name: &'a str,
     ) -> Result<Self> {
+        let decrypted_key = Self::decrypt_file_key(encrypted_key)?;
+        let encrypted_data = encrypted_data.map_or_else(
+            || Vec::with_capacity(0),
+            |data| Self::decode_encrypted_base64(data).unwrap(),
+        );
+
         Ok(Decrypter {
-            decrypted_key: Self::decrypt_file_key(encrypted_key)?,
-            encrypted_data: Self::decode_encrypted_base64(encrypted_data)?,
-            decrypted_data: Vec::default(),
+            decrypted_key,
+            encrypted_data,
+            decrypted_data: Vec::with_capacity(0),
             file_extension,
             file_name,
         })
     }
 
-    fn decrypt_file_key(encrypted_key: String) -> Result<Vec<u8>> {
+
+    /// Decrypts an encrypted file key.
+    ///
+    /// This function takes an encrypted key as a base64-encoded string,
+    /// decodes it, and then decrypts it using a private RSA key stored
+    /// in a file named `.private`. The decrypted key is further processed
+    /// by decoding it from base64 format to obtain the actual key.
+    ///
+    /// # Arguments
+    ///
+    /// * `encrypted_key` - A base64-encoded string representing the encrypted key.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing a vector of bytes representing the decrypted key,
+    /// or an error if the process fails at any step.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if:
+    /// - The encrypted key cannot be decoded from base64.
+    /// - The private key cannot be read from the `.private` file.
+    /// - The RSA decryption process fails.
+    /// - The final key cannot be decoded from base64.
+    fn decrypt_file_key(encrypted_key: &str) -> Result<Vec<u8>> {
         let decoded_test_key = Self::decode_encrypted_base64(encrypted_key)?;
+
+        println!("Decoded Test Key Length: {}", decoded_test_key.len());
 
         let private_key = std::fs::read_to_string(".private")?;
 
@@ -44,21 +87,58 @@ impl Decrypter {
             rsa_buffer.as_mut_slice(),
             rsa::Padding::PKCS1_OAEP,
         )?;
+
+        println!("Decrypted Test Key Length: {}", decrypted_test_key_length);
         rsa_buffer.truncate(decrypted_test_key_length);
-        Ok(rsa_buffer)
+        let actual_key = BASE64_STANDARD.decode(&rsa_buffer)?;
+        println!("Final Key Length: {}", actual_key.len());
+        Ok(actual_key)
     }
 
-    fn decode_encrypted_base64(encrypted_data: String) -> Result<Vec<u8>> {
+    /// Decode a base64-encoded string.
+    ///
+    /// # Arguments
+    ///
+    /// * `encrypted_data` - A base64-encoded string representing the encrypted data.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing a vector of bytes representing the decoded data,
+    /// or an error if the decoding process fails.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the input string cannot be
+    /// decoded from base64.
+    fn decode_encrypted_base64(encrypted_data: &str) -> Result<Vec<u8>> {
         let encrypted_data_string = encrypted_data.as_bytes();
         BASE64_STANDARD
             .decode(encrypted_data_string)
             .map_err(|err| anyhow::format_err!("Unable to decode the string from BASE64: {}", err))
     }
 
+    /// Decrypts a symmetrically encrypted file using AES-256-CBC.
+    ///
+    /// The function assumes that the first 16 bytes of the encrypted data contain
+    /// the initialization vector (IV), and the rest is the encrypted content.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing a new instance of `Decrypter` with the decrypted data,
+    /// or an error if the decryption process fails.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the decryption process fails due to
+    /// invalid key, IV, or corrupted encrypted content.
     pub fn decrypt_symetric_file(&self) -> Result<Self> {
         // First 16 bytes are the IV
+
         let iv = &self.encrypted_data[..16];
         let encrypted_content = &self.encrypted_data[16..];
+
+        println!("IV Length: {}", iv.len());
+        println!("Encrypted Content Length: {}", encrypted_content.len());
 
         let cipher = openssl::symm::Cipher::aes_256_cbc();
         let decrypted_data =
@@ -68,86 +148,36 @@ impl Decrypter {
             decrypted_key: self.decrypted_key.clone(),
             encrypted_data: Vec::default(),
             decrypted_data,
-            file_extension: self.file_extension.clone(),
-            file_name: self.file_name.clone(),
+            file_extension: self.file_extension,
+            file_name: self.file_name,
         })
-    }
-
-    pub fn write_decrypted(&self) -> Result<()> {
-        //TODO: Construct path from file extension and file file_name
-        //TODO: Remove from the actual struct and require it in the function call?
-        let decrypted_path = self.path_to_encrypted_file.with_extension("");
-        write(&decrypted_path, &self.decrypted_data).unwrap();
-        println!("Decrypted file written.");
-        Ok(())
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use std::{fs::remove_file, path::PathBuf};
-//
-//     #[test]
-//     fn test_decrypt_file_key() {
-//         let encrypted_key = "kq5BAdSKMl7swM0lkoy9ouert7JgvH4Mnt0TXnlSCHlZrVqZxymvucI2xnUb5bq4ECv2Pl+PZJuV45KJ6BleoRiR5K1iGjGvIrcADwLwlNNH+ArN8P69POGG9JEuG75QIpfspkcxmHXVn69s3J1QxwmpNK3C9BaQBML7lbf4/Ys54R75GZD+nuzD7Y74IGhsFbVtSrYvGxw3sUrKxYZEkmLFcesYDEme4MBnEzMOzdVgrGfNoeFiS24cIsgGf+G664B47+WdKnFREOfNjvHlWC4jBrU8rGnNtMZAGISF4WpLpG7c6r3Ot0H1gb1CT1F9f/kDvv/mHX2Iw6o9ThEI4w==";
-//         let decrypted_key = decrypt_file_key(&encrypted_key).unwrap();
-//
-//         assert_eq!(
-//             "k0nKWBtTfbr4fe8ay8WZq06zyi9BcSwQoHlK0d9MHQU=",
-//             String::from_utf8_lossy(&decrypted_key)
-//         );
-//     }
-//
-//     #[test]
-//     fn can_generate_rsa_key_pair() {
-//         let (public_key, private_key) = super::generate_rsa_key_pair().unwrap();
-//         assert!(
-//             public_key.starts_with("-----BEGIN PUBLIC KEY-----"),
-//             "Public key does not contain proper begin header."
-//         );
-//         assert!(
-//             private_key.starts_with("-----BEGIN RSA PRIVATE KEY-----"),
-//             "Private key does not contain proper begin header."
-//         );
-//     }
-//
-//     fn decrypt_and_write_file(encrypted_path: &Path, key_str: &str) -> (Vec<u8>, PathBuf) {
-//         let key = BASE64_STANDARD.decode(key_str).unwrap();
-//         let decrypted_content = decrypt_symetric_file(encrypted_path, key).unwrap();
-//         let decrypted_path = encrypted_path.with_extension("");
-//         write(&decrypted_path, &decrypted_content).unwrap();
-//         (decrypted_content, decrypted_path.to_path_buf())
-//     }
-//
-//     fn verify_png_file(path: &Path) {
-//         let decoder = png::Decoder::new(std::fs::File::open(path).unwrap());
-//         let reader = decoder.read_info().expect("Should be valid PNG file");
-//         assert!(
-//             reader.info().width > 0 && reader.info().height > 0,
-//             "Should have valid dimensions"
-//         );
-//     }
-//
-//     #[test]
-//     fn can_decrypt_text_based_symetric_file() {
-//         let encrypted_path = Path::new("test.txt.enc");
-//         let key = "h3tV3hdMgipp98uu9QhGwYhlbkaV00q6ln3iAh1GX60=";
-//         let (decrypted_content, decrypted_path) = decrypt_and_write_file(encrypted_path, key);
-//
-//         assert_eq!(decrypted_content, b"Hello!");
-//         assert_eq!(std::fs::read_to_string(&decrypted_path).unwrap(), "Hello!");
-//
-//         remove_file(decrypted_path).unwrap();
-//     }
-//
-//     #[test]
-//     fn can_decrypt_image_based_symetric_file() {
-//         let encrypted_path = Path::new("test.png.enc");
-//         let key = "j/HldO0y9Jp+rGxIDAgGjxwhHn34ja+r4PaGXxlf9Kk=";
-//         let (_, decrypted_path) = decrypt_and_write_file(encrypted_path, key);
-//
-//         verify_png_file(&decrypted_path);
-//         remove_file(decrypted_path).unwrap();
-//     }
-// }
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn can_decrypt_blob() {
+        let file_name = "test";
+        let file_extension = "txt";
+        let document_id = "581430de-6555-4d08-9487-09c93ab8bff6";
+
+        let encrypted_raw = "z6UIZ+F5DkRkgE6YndrM7glv+O3zO/luBsr/uRrF8k8=";
+        let encrypted_key = "BNIuDZHMYR43YPmkQg3HaPRAeDSXrmqfaNKl+p7vB44sVRowExg5OT9fQ1lNk4Gi7r2Kzk5oLJfOmzqt1BRmmmm7zI4jPUV9ng3FrCg23WZW+OBLywGi17YFmQW8CJUfmVz20yl5k82jrTBLLEqGAr/1b1krv0+UHr2dPsqiOKdreT9cVsLGUTJP2rw7ysxPH4WQEL+zzpA6LqIj4QXM+uvR6XSzyAwIpz6Zb7/t2IkulRWe1gnEXg+7hNnIlhmA5FQNjPliw1flcsEY0itWBb8cmT6fHa23jYmiaQ7AvCTG/IxohTFWgzIz7wMfyfD+ARf+dJpXqVXnkI0uY7tPSg==";
+        let test_data = "Hello!";
+
+        let decrypter = super::Decrypter::new(
+            encrypted_key,
+            Some(encrypted_raw),
+            file_name,
+            file_extension,
+        )
+        .unwrap();
+
+        let decrypted_blob = decrypter.decrypt_symetric_file().unwrap();
+        let decrypted_string = String::from_utf8(decrypted_blob.decrypted_data).unwrap();
+        println!("{}", decrypted_string);
+        assert_eq!(&decrypted_string, test_data)
+    }
+}

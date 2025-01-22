@@ -14,7 +14,7 @@ use components::{navbar, views};
 use custom_settings::window_settings;
 use models::supabase_models::*;
 use once_cell::sync::Lazy;
-use operations::{SupabaseQuery, TursoQuery};
+use operations::{SupabaseQuery, TursoQuery, Decrypter};
 
 pub static NOTO_SANS_JP: Font = Font::with_name("Noto Sans JP");
 static SUPABASE_CLIENT: Lazy<SupabaseQuery> = Lazy::new(|| SupabaseQuery::new());
@@ -93,15 +93,20 @@ impl Dashboard {
     //             let enc_key = SUPABASE_CLIENT
     //                 .fetch_key(doc_id)
     //                 .await
-    //                 .map_err(|e| e.to_string());
+    //                 .map_err(|e| e.to_string()).unwrap();
     //             let turso = TursoQuery::new().await;
     //             let enc_file = turso.get_file(doc_id);
+    //             let decrypter = Decrypter::new(
+    //                 enc_key.unwrap().to_string()
+    //
+    //
+    //             )
     //             let key = decrypt_key(enc_key);
     //             decrypt_bin(key, enc_file)
     //         },
     //         move |result| Message::FetchStudentDoc(result),
     //     )
-    // }
+    }
 
     // TODO: Implement this into the vsiews
     #[allow(dead_code)]

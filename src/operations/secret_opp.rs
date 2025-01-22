@@ -10,8 +10,7 @@ pub struct Decrypter<'a> {
     decrypted_key: Vec<u8>,
     encrypted_data: Vec<u8>,
     pub decrypted_data: Vec<u8>,
-    file_extension: &'a str,
-    file_name: &'a str,
+    full_file_name: &'a str,
 }
 
 impl<'a> Decrypter<'a> {
@@ -31,8 +30,7 @@ impl<'a> Decrypter<'a> {
     pub fn new(
         encrypted_key: &'a str,
         encrypted_data: Option<&'a str>,
-        file_extension: &'a str,
-        file_name: &'a str,
+        full_file_name: &'a str,
     ) -> Result<Self> {
         let decrypted_key = Self::decrypt_file_key(encrypted_key)?;
         let encrypted_data = encrypted_data.map_or_else(
@@ -44,8 +42,7 @@ impl<'a> Decrypter<'a> {
             decrypted_key,
             encrypted_data,
             decrypted_data: Vec::with_capacity(0),
-            file_extension,
-            file_name,
+            full_file_name,
         })
     }
 
@@ -148,8 +145,7 @@ impl<'a> Decrypter<'a> {
             decrypted_key: self.decrypted_key.clone(),
             encrypted_data: Vec::default(),
             decrypted_data,
-            file_extension: self.file_extension,
-            file_name: self.file_name,
+            full_file_name: self.full_file_name,
         })
     }
 }
@@ -159,8 +155,7 @@ mod tests {
 
     #[test]
     fn can_decrypt_blob() {
-        let file_name = "test";
-        let file_extension = "txt";
+        let full_file_name = "test.txt";
         let document_id = "581430de-6555-4d08-9487-09c93ab8bff6";
 
         let encrypted_raw = "z6UIZ+F5DkRkgE6YndrM7glv+O3zO/luBsr/uRrF8k8=";
@@ -170,8 +165,7 @@ mod tests {
         let decrypter = super::Decrypter::new(
             encrypted_key,
             Some(encrypted_raw),
-            file_name,
-            file_extension,
+            full_file_name,
         )
         .unwrap();
 

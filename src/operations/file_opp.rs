@@ -8,11 +8,12 @@ pub struct FileSaver {
     root: PathBuf,
 }
 
+#[derive(Debug, Clone)]
 pub struct FileToSave {
     content: Vec<u8>,
     file_name: String,
     display_name: String,
-    crated_at: String,
+    created_at: String,
 }
 
 impl FileToSave {
@@ -21,7 +22,7 @@ impl FileToSave {
             content,
             file_name,
             display_name,
-            crated_at: crated_at.to_rfc3339().split("T").next().unwrap().to_string(),
+            created_at: crated_at.to_rfc3339().split("T").next().unwrap().to_string(),
         }
     }
 }
@@ -44,7 +45,7 @@ impl FileSaver {
         std::fs::create_dir_all(&display_dir)?;
         let file_path = display_dir.join(format!(
             "{}_{}_{}",
-            file.display_name, file_name, file.crated_at
+            file.display_name, file_name, file.created_at
         )).with_extension(file_extension);
         std::fs::write(file_path, file.content)?;
         Ok(())

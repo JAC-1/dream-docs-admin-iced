@@ -1,6 +1,7 @@
 use std::fmt::Binary;
 
 use anyhow::Result;
+use chrono::{DateTime, Local};
 use iced::{widget, Element, Font, Task};
 
 mod components;
@@ -14,7 +15,7 @@ use components::{navbar, views};
 use custom_settings::window_settings;
 use models::supabase_models::*;
 use once_cell::sync::Lazy;
-use operations::{SupabaseQuery, TursoQuery, Decrypter};
+use operations::{SupabaseQuery, TursoQuery, Decrypter, FileSaver, FileToSave};
 
 pub static NOTO_SANS_JP: Font = Font::with_name("Noto Sans JP");
 static SUPABASE_CLIENT: Lazy<SupabaseQuery> = Lazy::new(|| SupabaseQuery::new());
@@ -48,9 +49,12 @@ enum Dashboard {
 #[derive(Debug, Clone)]
 pub enum Message {
     // StartFetchStudentDoc(File),
-    // FetchStudentDoc(Vec<u8>),
     StartFetchStudentDocs(StudentProfileData),
     FetchStudentDocs(Result<Vec<File>, String>, StudentProfileData),
+
+    StartFetchStudentDoc(File, StudentProfileData),
+    FetchStudentDoc(FileToSave),
+    StudentDocSaved,
     StudentsLoaded(Result<Vec<StudentProfileData>, String>),
     NavigateToHome,
     NavigateToStudents,
@@ -87,25 +91,35 @@ impl Dashboard {
         )
     }
 
-    // fn get_student_doc(doc_id: String) -> Task<Message> {
-    //     Task::perform(
-    //         async move {
-    //             let enc_key = SUPABASE_CLIENT
-    //                 .fetch_key(doc_id)
-    //                 .await
-    //                 .map_err(|e| e.to_string()).unwrap();
-    //             let turso = TursoQuery::new().await;
-    //             let enc_file = turso.get_file(doc_id);
-    //             let decrypter = Decrypter::new(
-    //                 enc_key.unwrap().to_string()
-    //
-    //
-    //             )
-    //             let key = decrypt_key(enc_key);
-    //             decrypt_bin(key, enc_file)
-    //         },
-    //         move |result| Message::FetchStudentDoc(result),
-    //     )
+    fn get_student_doc(doc_id: String, full_file_name: String, display_name: String, created_at: DateTime<Local>) -> Task<Message> {
+        Task::perform(
+            async move {
+                let enc_key = SUPABASE_CLIENT
+                   .fetch_key(doc_id.clone())
+                    .await
+                    .map_err(|e| e.to_string()).unwrap();
+                let turso = TursoQuery::new().await;
+                let enc_file = turso.get_file(doc_id).await.unwrap();
+                let decrypter = Decrypter::new(
+                    &enc_key,
+                    Some(&enc_file),
+                    &full_file_name,
+                ).unwrap();
+                let decrypted = decrypter.decrypt_symetric_file().unwrap().decrypted_data;
+                FileToSave::new(decrypted, full_file_name, display_name, created_at)
+            },
+            move |result| Message::FetchStudentDoc(result),
+        )
+
+    }
+    fn save_file(file: FileToSave) -> Task<Message> {
+        Task::perform(
+            async move {
+                let file_saver = FileSaver::set_root().unwrap();
+                file_saver.save_individual(file).await.unwrap()
+            },
+            move |result| Message::StudentDocSaved,
+        )
     }
 
     // TODO: Implement this into the vsiews
@@ -116,7 +130,7 @@ impl Dashboard {
             Dashboard::StudentProfileDataLoading => String::new(),
             Dashboard::HomeView => String::from("Home - Dashboard"),
             Dashboard::StudentsView { .. } => String::from("Students - Dashboard"),
-            Dashboard::StudentProfileview { .. } => String::from("Sudent Profile - Dashboard"),
+            Dashboard::StudentProfileview { .. } => String::from("Student Profile - Dashboard"),
             Dashboard::Errored(_) => String::from("Error - Dashboard"),
         }
     }
@@ -131,15 +145,25 @@ impl Dashboard {
                 *self = Dashboard::StudentDocsLoading;
                 Self::get_student_docs(student.display_id.clone(), student)
             }
-            Message::FetchStudentDocs(Ok(docs), student) => {
-                *self = Dashboard::StudentProfileview { student, docs };
+            Message::FetchStudentDocs(result, student) => {
+                match result {
+                    Ok(docs) => *self = Dashboard::StudentProfileview { student, docs },
+                    Err(error) => *self = Dashboard::Errored(error),
+                }
                 Task::none()
             }
-            Message::FetchStudentDocs(Err(error), _) => {
-                *self = Dashboard::Errored(error);
+            Message::StartFetchStudentDoc(file, student) => {
+                *self = Dashboard::StudentDocsLoading;
+                Self::get_student_doc(file.document_id.clone(), file.file_name.clone(), student.display_name, file.created_at)
+            }
+            Message::FetchStudentDoc(file_to_save) => {
+                *self = Dashboard::StudentDocsLoading;
+                Self::save_file(file_to_save)
+            }
+            Message::StudentDocSaved => {
                 Task::none()
             }
-            Message::StudentsLoaded(Err(error)) => {
+            Message::StudentsLoaded(Err(error)) => { // TODO: Refactor
                 *self = Dashboard::Errored(error);
                 Task::none()
             }
@@ -175,7 +199,7 @@ impl Dashboard {
             Dashboard::StudentsView { students } => views::students_view(students),
             Dashboard::HomeView => views::home_view(),
             Dashboard::StudentProfileview { student, docs } => {
-                views::student_profile(student, docs)
+                views::student_profile(student.clone(), docs.clone())
             }
             Dashboard::Errored(error_message) => widget::column![
                 widget::text("Something went wrong..").size(40),

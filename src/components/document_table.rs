@@ -18,7 +18,7 @@ pub fn student_documents_table(docs: Vec<File>, student: StudentProfileData) -> 
     let document_header = row![
         header_text("Document ID".to_string()),
         header_text("Task Type".to_string()),
-        header_text("Status".to_string()),
+       header_text("Status".to_string()),
         header_text("Mime Type".to_string()),
         header_text("Status Message".to_string()),
         header_text("Created At".to_string()),
@@ -35,15 +35,14 @@ pub fn student_documents_table(docs: Vec<File>, student: StudentProfileData) -> 
             text(doc.status_message.clone().unwrap_or_default()).width(FillPortion(1)), // Status Message
             text(doc.created_at.to_string()).width(FillPortion(1)), // Created At
             text(doc.updated_at.to_string()).width(FillPortion(1)), // Updated At
-            button("Download").width(FillPortion(1)).on_press(Message::StartFetchStudentDoc(doc, student_info))                // Download
+            button("Download").width(FillPortion(1)).on_press(Message::StartFetchStudentDoc(doc, student_info, docs.clone()))                // Download
         ]
     };
 
     let mut main_container = column![document_header];
     let mut docs_container = column![];
 
-    docs_container = docs_container.push(text("Sorry Nothing"));
-    for doc in docs {
+    for doc in docs.clone() {
         let doc_row = document_row(doc, student.clone());
         docs_container = docs_container.push(doc_row);
     }

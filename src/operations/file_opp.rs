@@ -1,4 +1,4 @@
-﻿use anyhow::Result;
+use anyhow::Result;
 use chrono::{DateTime, Local};
 use rfd::FileDialog;
 use std::path::Path;
@@ -17,12 +17,22 @@ pub struct FileToSave {
 }
 
 impl FileToSave {
-    pub fn new(content: Vec<u8>, file_name: String, display_name: String, crated_at: DateTime<Local>) -> Self {
+    pub fn new(
+        content: Vec<u8>,
+        file_name: String,
+        display_name: String,
+        crated_at: DateTime<Local>,
+    ) -> Self {
         Self {
             content,
             file_name,
             display_name,
-            created_at: crated_at.to_rfc3339().split("T").next().unwrap().to_string(),
+            created_at: crated_at
+                .to_rfc3339()
+                .split("T")
+                .next()
+                .unwrap()
+                .to_string(),
         }
     }
 }
@@ -43,10 +53,12 @@ impl FileSaver {
         let file_extension = file_name_segment.get(1).unwrap_or(&"").to_string();
         let display_dir = self.root.join(&file.display_name);
         std::fs::create_dir_all(&display_dir)?;
-        let file_path = display_dir.join(format!(
-            "{}_{}_{}",
-            file.display_name, file_name, file.created_at
-        )).with_extension(file_extension);
+        let file_path = display_dir
+            .join(format!(
+                "{}_{}_{}",
+                file.display_name, file_name, file.created_at
+            ))
+            .with_extension(file_extension);
         std::fs::write(file_path, file.content)?;
         Ok(())
     }
@@ -65,7 +77,12 @@ mod tests {
     #[tokio::test]
     async fn test_save_individual() {
         let file_saver = FileSaver::set_root().unwrap();
-        let file = FileToSave::new(Vec::new(), String::from("test.txt"), String::from("john johnson"), Local::now());
+        let file = FileToSave::new(
+            Vec::new(),
+            String::from("test.txt"),
+            String::from("john johnson"),
+            Local::now(),
+        );
         println!("{:?}", file_saver.save_individual(file).await.unwrap());
     }
 }

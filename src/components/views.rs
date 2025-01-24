@@ -63,8 +63,8 @@ pub fn students_view(student_profile_data: &Vec<StudentProfileData>) -> Element<
 }
 
 pub fn student_profile(
-    student: StudentProfileData,
-    docs: Vec<File>,
+    student: &StudentProfileData,
+    docs: &Vec<File>,
 ) -> Element<'static, Message> {
     let profile_container = Container::new(profile_info(&student)).max_height(400);
     let document_table = student_documents_table(docs, student);

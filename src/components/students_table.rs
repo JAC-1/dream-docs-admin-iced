@@ -1,6 +1,6 @@
 use crate::models::supabase_models::*;
 
-use crate::{Message, NOTO_SANS_JP};
+use crate::{Message, View, NOTO_SANS_JP};
 use iced::advanced::graphics::core::font;
 use iced::widget::{button, horizontal_rule, row, text, Column, Scrollable};
 use iced::Alignment::Center;
@@ -71,7 +71,7 @@ pub fn students_table(
                 .width(FillPortion(1)),
         ])
         .style(iced::widget::button::secondary)
-        .on_press(Message::StartFetchStudentDocs(student.clone()))
+        .on_press(Message::SelectAndViewStudent(student.clone()))
         .padding(padding)
         .into()
     }

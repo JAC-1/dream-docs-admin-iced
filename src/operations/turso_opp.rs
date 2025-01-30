@@ -2,6 +2,7 @@ use crate::models::turso_models::*;
 use dotenv::dotenv;
 use libsql::{de, Builder, Database};
 
+#[derive(Debug)]
 pub struct TursoQuery {
     db: Result<Database, String>,
 }
@@ -25,21 +26,30 @@ impl TursoQuery {
             Ok(db) => {
                 let conn = db
                     .connect()
-                    .expect("Failed to connect to to the turso database in get_file");
+                    .map_err(|e| format!("Failed to connect to turso database: {}", e))?;
+
                 let mut rows = conn
                     .query(
                         "SELECT * FROM files WHERE external_doc_id = ?1",
-                        libsql::params![doc_id],
+                        libsql::params![doc_id.clone()],
                     )
                     .await
-                    .unwrap();
-                let row = rows.next().await.unwrap().unwrap(); // Get's first row only
-                let file: EncryptedFile = de::from_row::<EncryptedFile>(&row).unwrap();
+                    .map_err(|e| format!("Failed to execute query: {}", e))?;
+
+                let row = rows
+                    .next()
+                    .await
+                    .map_err(|e| format!("Failed to get next row: {}", e))?
+                    .ok_or(format!("No file found for given document {}", doc_id))?;
+
+                let file: EncryptedFile = de::from_row::<EncryptedFile>(&row)
+                    .map_err(|e| format!("Failed to deserialize row: {}", e))?;
+
                 Ok(file.file)
             }
 
             Err(e) => Err(format!(
-                "An error creating the conector in the get_file function occured: {}",
+                "An error creating the connector in the get_file function occurred: {}",
                 e
             )),
         }

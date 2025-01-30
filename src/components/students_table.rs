@@ -1,6 +1,6 @@
 use crate::models::supabase_models::*;
 
-use crate::{Message, View, NOTO_SANS_JP};
+use crate::{Message, NOTO_SANS_JP};
 use iced::advanced::graphics::core::font;
 use iced::widget::{button, horizontal_rule, row, text, Column, Scrollable};
 use iced::Alignment::Center;

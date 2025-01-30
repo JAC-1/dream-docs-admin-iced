@@ -23,7 +23,7 @@ impl FileToSave {
         display_name: String,
         crated_at: DateTime<Local>,
     ) -> Self {
-        Self {
+        FileToSave {
             content,
             file_name,
             display_name,
@@ -38,10 +38,13 @@ impl FileToSave {
 }
 
 impl FileSaver {
-    pub fn set_root() -> Result<Self> {
+    pub fn new(root: PathBuf) -> Self {
+        Self { root }
+    }
+    pub fn select_root() -> Result<PathBuf> {
         let path = Path::new("/");
         if let Some(root) = FileDialog::new().set_directory(path).pick_folder() {
-            Ok(Self { root })
+            Ok(root)
         } else {
             anyhow::bail!("No directory selected")
         }
@@ -49,7 +52,7 @@ impl FileSaver {
 
     pub async fn save_individual(&self, file: FileToSave) -> Result<()> {
         let file_name_segment = file.file_name.split(".").collect::<Vec<&str>>();
-        let file_name = file_name_segment.get(0).unwrap_or(&"").to_string();
+        let file_name = file_name_segment.first().unwrap_or(&"").to_string();
         let file_extension = file_name_segment.get(1).unwrap_or(&"").to_string();
         let display_dir = self.root.join(&file.display_name);
         std::fs::create_dir_all(&display_dir)?;
@@ -70,13 +73,15 @@ mod tests {
 
     #[test]
     fn test_set_root() {
-        let file_saver = FileSaver::set_root().unwrap();
+        let root = FileSaver::select_root().unwrap();
+        let file_saver = FileSaver::new(root);
         println!("{}", file_saver.root.display());
     }
 
     #[tokio::test]
     async fn test_save_individual() {
-        let file_saver = FileSaver::set_root().unwrap();
+        let root = FileSaver::select_root().unwrap();
+        let file_saver = FileSaver::new(root);
         let file = FileToSave::new(
             Vec::new(),
             String::from("test.txt"),

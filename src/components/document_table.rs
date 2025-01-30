@@ -1,7 +1,4 @@
-use std::ops::Deref;
-
 use crate::models::supabase_models::*;
-use crate::operations::FileToSave;
 use crate::types::FileStatus;
 use crate::Message;
 use iced::advanced::graphics::core::font;
@@ -47,7 +44,9 @@ pub fn student_documents_table(
         ]
     };
 
-    let mut main_container = column![document_header];
+    let download_all_button = button("Download All").on_press(Message::DownloadAllDocs);
+    let main_container = column![download_all_button];
+    let mut main_container = main_container.push(document_header);
     let mut docs_container = column![];
 
     for doc in docs.clone() {

@@ -66,7 +66,7 @@ pub fn student_profile(
     student: &StudentProfileData,
     docs: &Vec<File>,
 ) -> Element<'static, Message> {
-    let profile_container = Container::new(profile_info(&student)).max_height(400);
+    let profile_container = Container::new(profile_info(student)).max_height(400);
     let document_table = student_documents_table(docs, student);
     container(column![profile_container, document_table])
         .center_x(Fill)

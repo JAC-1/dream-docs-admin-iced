@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum FileStatus {
+    #[default]
     New,
     Pending,
     Approved,
@@ -30,6 +31,7 @@ impl<'de> Deserialize<'de> for FileStatus {
 
 impl FileStatus {
     pub fn from_str(s: &str) -> Option<FileStatus> {
+        // Handles conversions from the database
         match s {
             "new" => Some(FileStatus::New),
             "pending" => Some(FileStatus::Pending),
@@ -40,10 +42,32 @@ impl FileStatus {
     }
     pub fn to_str(&self) -> &str {
         match self {
+            // Handles conversions from the database
             FileStatus::New => "new",
             FileStatus::Pending => "pending",
             FileStatus::Approved => "approved",
             FileStatus::Declined => "declined",
         }
+    }
+    pub const ALL: [FileStatus; 4] = [
+        FileStatus::New,
+        FileStatus::Pending,
+        FileStatus::Approved,
+        FileStatus::Declined,
+    ];
+}
+
+impl std::fmt::Display for FileStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                FileStatus::New => "Pending ⚪",
+                FileStatus::Pending => "Submitted 🟡",
+                FileStatus::Approved => "Approved 🟢",
+                FileStatus::Declined => "Declined 🔴",
+            }
+        )
     }
 }

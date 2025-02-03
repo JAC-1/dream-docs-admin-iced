@@ -15,6 +15,7 @@ use custom_settings::window_settings;
 use models::supabase_models::*;
 use once_cell::sync::Lazy;
 use operations::{Decrypter, FileSaver, FileToSave, SupabaseQuery, TursoQuery};
+use types::FileStatus;
 
 pub static NOTO_SANS_JP: Font = Font::with_name("Noto Sans JP");
 static SUPABASE_CLIENT: Lazy<SupabaseQuery> = Lazy::new(|| SupabaseQuery::new());
@@ -35,6 +36,8 @@ struct DashboardState {
     selected_student: Option<StudentProfileData>,
     selected_student_docs: Vec<File>,
     doc_to_save: Option<FileToSave>,
+    doc_to_update: Option<File>,
+    doc_to_update_status: FileStatus,
     docs_to_save: Option<Vec<FileToSave>>,
     is_loading: bool,
     error: Option<String>,
@@ -67,6 +70,8 @@ pub enum Message {
     SetDocuments(Vec<File>),
     DownloadAllDocs,
     FetchStudentDoc(File),
+    DocumentStatusSelected(FileStatus, String),
+    UpdatedDocStatus(String),
     DocumentSave(FileToSave),
     DocumentsSave(Vec<FileToSave>),
     SetSaveRoot(PathBuf),
@@ -207,6 +212,21 @@ impl Dashboard {
         )
     }
 
+    fn update_file_status(status_string: String, doc_id: String) -> Task<Message> {
+        Task::perform(
+            async {
+                SUPABASE_CLIENT
+                    .update_doc_status(status_string, doc_id)
+                    .await
+                    .map_err(|e| e.to_string())
+            },
+            move |result| match result {
+                Ok(s) => Message::UpdatedDocStatus(s),
+                Err(error) => Message::SetError(Some(error)),
+            },
+        )
+    }
+
     // // TODO: Implement this into the views
     // #[allow(dead_code)]
     // fn title(&self) -> String {
@@ -335,6 +355,20 @@ impl Dashboard {
                     Err(error) => Message::SetError(Some(error)),
                 },
             ),
+            Message::DocumentStatusSelected(file_status, doc_id) => {
+                // self.state.is_loading = true;
+                let status_string = file_status.clone().to_str().to_string();
+                Self::update_file_status(status_string, doc_id)
+            }
+            Message::UpdatedDocStatus(message) => {
+                // self.state.is_loading = false;
+                println!("{}", message);
+                self.state.current_view = View::StudentProfile;
+                match self.state.selected_student.clone() {
+                    Some(student) => Self::get_student_docs(student),
+                    None => Task::none(),
+                }
+            }
             Message::Close => {
                 std::process::exit(1);
             }
@@ -381,7 +415,10 @@ impl Dashboard {
                 } else if let Some(student) = &self.state.selected_student {
                     views::student_profile(student, &self.state.selected_student_docs)
                 } else {
-                    widget::text("No student selected").size(50).center().into()
+                    widget::text("No student selected, or no such student found")
+                        .size(50)
+                        .center()
+                        .into()
                 }
             }
         };

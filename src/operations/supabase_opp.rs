@@ -42,6 +42,7 @@ impl SupabaseQuery {
             .from("file_cache")
             .select("*")
             .eq("user_id", &student_id)
+            .order("task_type")
             .execute()
             .await?;
         let file_list: Vec<File> = serde_json::from_str(&query.text().await?)?;
@@ -58,6 +59,20 @@ impl SupabaseQuery {
             .await?;
         let file_key_json: Vec<FileKey> = serde_json::from_str(&query.text().await?)?;
         Ok(file_key_json[0].encrypted_key.clone())
+    }
+    pub async fn update_doc_status(&self, status: String, doc_id: String) -> Result<String> {
+        let update_json = format!(r#"{{"status": "{}"}}"#, &status);
+        let _ = self
+            .client
+            .from("file_cache")
+            .eq("document_id", &doc_id)
+            .update(update_json)
+            .execute()
+            .await?;
+        Ok(format!(
+            "Document {} updated to {} successfully",
+            doc_id, status
+        ))
     }
 }
 

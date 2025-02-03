@@ -36,8 +36,6 @@ struct DashboardState {
     selected_student: Option<StudentProfileData>,
     selected_student_docs: Vec<File>,
     doc_to_save: Option<FileToSave>,
-    doc_to_update: Option<File>,
-    doc_to_update_status: FileStatus,
     docs_to_save: Option<Vec<FileToSave>>,
     is_loading: bool,
     error: Option<String>,
@@ -48,8 +46,8 @@ struct DashboardState {
 #[derive(Debug, Clone, Default)]
 pub enum View {
     #[default]
-    Home,
     Students,
+    Home,
     StudentProfile,
 }
 

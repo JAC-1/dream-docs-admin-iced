@@ -42,6 +42,19 @@ impl TaskType {
             TaskType::FamilyImages => "Family_Images",
         }
     }
+    pub fn to_string(&self) -> String {
+        match self {
+            TaskType::StudyAbroadAgreement => "Study_Abroad_Agreement".to_string(),
+            TaskType::PersonalInformationWaiver => "Personal_Information_Waiver".to_string(),
+            TaskType::WhyStudyInCanada => "Why_I_want_to_Study_in_Canada".to_string(),
+            TaskType::HomestayLetter => "Homestay_Letter".to_string(),
+            TaskType::Passport => "Passport".to_string(),
+            TaskType::Headshot => "Headshot".to_string(),
+            TaskType::StudyAbroadApplication => "Study_Abroad_Application".to_string(),
+            TaskType::ImmunizationRecord => "Immunization_Record".to_string(),
+            TaskType::FamilyImages => "Family_Images".to_string(),
+        }
+    }
 }
 
 impl serde::Serialize for TaskType {

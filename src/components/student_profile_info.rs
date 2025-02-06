@@ -31,7 +31,8 @@ pub fn profile_info(student: &StudentProfileData) -> Element<'static, Message> {
             .to_string(),
         16,
     );
-    let class_name = text!("R4-3M").size(12);
+    let class_name = text!("R4-3M").size(12); // TODO: What information from student DB do we need
+                                              // to have for this?
 
     let space = Space::new(90, 0); // "Nudges" the row so to center it over the document
                                    // section

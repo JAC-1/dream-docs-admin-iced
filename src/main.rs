@@ -73,6 +73,7 @@ pub enum Message {
     DocumentSave(FileToSave),
     DocumentsSave(Vec<FileToSave>),
     SetSaveRoot(PathBuf),
+    SetSaveRootAndDownloadAll(PathBuf),
     SelectSaveRoot,
     Close,
 }
@@ -318,7 +319,7 @@ impl Dashboard {
                     Task::perform(
                         async { FileSaver::select_root().map_err(|e| e.to_string()) },
                         |result| match result {
-                            Ok(root) => Message::SetSaveRoot(root),
+                            Ok(root) => Message::SetSaveRootAndDownloadAll(root),
                             Err(error) => Message::SetError(Some(error)),
                         },
                     )
@@ -333,11 +334,21 @@ impl Dashboard {
                     )
                 }
                 None => {
+                    self.state.is_loading = false;
                     self.state.error =
                         Some("Error: No student found to download all docs.".to_string());
                     Task::none()
                 }
             },
+            Message::SetSaveRootAndDownloadAll(root) => {
+                self.state.save_root = Some(root.clone());
+                if let Some(docs_to_save) = self.state.docs_to_save.take() {
+                    Self::save_all_files(docs_to_save, root)
+                } else {
+                    self.state.error = Some("An Erorr saving all docs has occured".to_string());
+                    Task::none()
+                }
+            }
             Message::SetSaveRoot(root) => {
                 self.state.save_root = Some(root.clone());
                 if let Some(file) = self.state.doc_to_save.take() {

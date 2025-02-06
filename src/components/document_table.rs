@@ -1,8 +1,8 @@
 use crate::models::supabase_models::*;
 use crate::types::FileStatus;
 use crate::Message;
-use iced::widget::{button, column, pick_list, row, scrollable, span, text, Container, Space};
-use iced::{Center, Element, Fill, FillPortion};
+use iced::widget::{button, column, pick_list, row, scrollable, text, Container, Space};
+use iced::{Alignment, Center, Element, Fill};
 
 pub fn student_documents_table(docs: &Vec<File>) -> Element<'static, Message> {
     if docs.is_empty() {
@@ -12,8 +12,12 @@ pub fn student_documents_table(docs: &Vec<File>) -> Element<'static, Message> {
             .center(Fill)
             .into();
     }
-    // let download_all_button = button("Download All").on_press(Message::DownloadAllDocs);
-    // let mut main_container = column![download_all_button];
+    let download_all_button = button("Download All")
+        .on_press(Message::DownloadAllDocs)
+        .padding(10);
+    let header = row![Space::new(0, 0), download_all_button]
+        .align_y(Center)
+        .padding(10);
     let mut docs_container = column![].spacing(11);
     let mut doc_row = row![].spacing(11);
     let mut count = 0;
@@ -22,7 +26,8 @@ pub fn student_documents_table(docs: &Vec<File>) -> Element<'static, Message> {
         let doc_card = document_card(&doc);
         doc_row = doc_row.push(doc_card);
         count += 1;
-        if count == 3 {
+        // Change count check value to increase the number of cards per row
+        if count == 4 {
             docs_container = docs_container.push(doc_row.push(Space::new(20, 0)));
             doc_row = row![].spacing(11);
             count = 0;
@@ -34,7 +39,11 @@ pub fn student_documents_table(docs: &Vec<File>) -> Element<'static, Message> {
     }
 
     let scrollable_docs = scrollable(docs_container);
-    let main_container = Container::new(scrollable_docs)
+    let main_column = column![header, scrollable_docs]
+        .width(Fill)
+        .height(Fill)
+        .align_x(Center);
+    let main_container = Container::new(main_column)
         .padding([0, 78])
         .width(Fill)
         .center(Fill);

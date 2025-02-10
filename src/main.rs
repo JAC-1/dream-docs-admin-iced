@@ -1,7 +1,9 @@
-use std::path::PathBuf;
+#![windows_subsystem = "windows"]
+use std::{collections::HashMap, path::PathBuf, env};
 
 use chrono::{DateTime, Local};
-use iced::{widget, Element, Font, Task};
+use iced::{widget, Center, Element, Fill, Font, Task};
+use iced::widget::Container;
 
 mod components;
 mod custom_settings;
@@ -19,8 +21,24 @@ use types::FileStatus;
 
 pub static NOTO_SANS_JP: Font = Font::with_name("Noto Sans JP");
 static SUPABASE_CLIENT: Lazy<SupabaseQuery> = Lazy::new(|| SupabaseQuery::new());
+const ENV_FILE: &str = include_str!("../.env");
+fn parse_env(env_str: &str) -> HashMap<String, String> {
+    env_str
+        .lines()
+        .filter(|line| !line.trim().is_empty() && !line.starts_with('#')) // Ignore comments and empty lines
+        .filter_map(|line| {
+            let mut parts = line.splitn(2, '=');
+            Some((parts.next()?.trim().to_string(), parts.next()?.trim().to_string()))
+        })
+        .collect()
+}
+
 
 fn main() -> iced::Result {
+    let env_vars = parse_env(ENV_FILE);
+    for (key, value) in env_vars {
+        env::set_var(key, value);
+    }
     let font_bytes_regular = include_bytes!("fonts/NotoSansJP-Regular.ttf").as_slice();
     let font_bytes_bold = include_bytes!("fonts/NotoSansJP-Bold.ttf").as_slice();
     iced::application("Dashboard", Dashboard::update, Dashboard::view)
@@ -32,6 +50,7 @@ fn main() -> iced::Result {
 
 #[derive(Debug, Clone, Default)]
 struct DashboardState {
+    loading_message: String,
     students: Vec<StudentProfileData>,
     selected_student: Option<StudentProfileData>,
     selected_student_docs: Vec<File>,
@@ -251,6 +270,7 @@ impl Dashboard {
             }
             Message::SetStudents(students) => {
                 self.state.students = students;
+                self.state.loading_message = "Loading students".to_string();
                 self.state.is_loading = false;
                 Task::none()
             }
@@ -272,7 +292,9 @@ impl Dashboard {
             Message::SelectAndViewStudent(student) => {
                 self.state.selected_student = Some(student.clone());
                 self.state.current_view = View::StudentProfile;
+                self.state.loading_message = "Loading student profiles...".to_string();
                 self.state.is_loading = true;
+                self.state.loading_message = "Loading Student Profile...".to_string();
                 Self::get_student_docs(student)
             }
             Message::SetDocuments(student_docs) => {
@@ -282,6 +304,8 @@ impl Dashboard {
             }
             Message::FetchStudentDoc(file) => {
                 if let Some(selected_student) = &self.state.selected_student {
+                    self.state.loading_message =
+                        "Fetching and preparing selected document...".to_string();
                     self.state.is_loading = true;
                     Self::get_student_doc(
                         file.document_id,
@@ -296,11 +320,14 @@ impl Dashboard {
                 }
             }
             Message::DocumentSave(file_to_download) => {
+                self.state.loading_message = "".to_string();
                 self.state.is_loading = true;
                 if let Some(root) = &self.state.save_root {
+                    self.state.loading_message = "Saving file ...".to_string();
                     Self::save_file(file_to_download, root.clone())
                 } else {
                     self.state.doc_to_save = Some(file_to_download);
+                    self.state.loading_message = "Setting root directory...".to_string();
                     Task::perform(
                         async { FileSaver::select_root().map_err(|e| e.to_string()) },
                         |result| match result {
@@ -327,6 +354,8 @@ impl Dashboard {
             }
             Message::DownloadAllDocs => match &self.state.selected_student {
                 Some(student) => {
+                    self.state.loading_message =
+                        "Downloading and processing all docs ...".to_string();
                     self.state.is_loading = true;
                     Self::download_all_docs(
                         self.state.selected_student_docs.clone(),
@@ -352,8 +381,10 @@ impl Dashboard {
             Message::SetSaveRoot(root) => {
                 self.state.save_root = Some(root.clone());
                 if let Some(file) = self.state.doc_to_save.take() {
+                    self.state.loading_message = "Saving file...".to_string();
                     Self::save_file(file, root)
                 } else {
+                    self.state.error = Some("An error has occured saving the file.".to_string());
                     Task::none()
                 }
             }
@@ -370,7 +401,6 @@ impl Dashboard {
                 Self::update_file_status(status_string, doc_id)
             }
             Message::UpdatedDocStatus(message) => {
-                // self.state.is_loading = false;
                 println!("{}", message);
                 self.state.current_view = View::StudentProfile;
                 match self.state.selected_student.clone() {
@@ -378,9 +408,7 @@ impl Dashboard {
                     None => Task::none(),
                 }
             }
-            Message::Close => {
-                std::process::exit(1);
-            }
+            Message::Close => std::process::exit(0),
         }
     }
 
@@ -392,22 +420,23 @@ impl Dashboard {
                 if self.state.is_loading {
                     widget::text("Students Loading...").size(50).center().into()
                 } else if let Some(err) = &self.state.error {
-                    widget::column![
-                        widget::text("Something went wrong..").size(40),
+                    let error_column = widget::column![
+                        widget::text("Something went wrong...").size(40),
                         widget::text(err),
                         widget::button("Back")
                             .on_press(Message::SetView(View::Students))
                             .on_press(Message::ClearError)
                     ]
-                    .spacing(20)
-                    .into()
+                    .spacing(20).width(Fill).height(Fill).align_x(Center);
+                    Container::new(error_column).width(Fill).height(Fill).center(Fill).padding(78).into()
                 } else {
                     views::students_view(&self.state.students)
                 }
             }
             View::StudentProfile => {
                 if self.state.is_loading {
-                    widget::text("Student Profile Loading...")
+                    let loading_text = self.state.loading_message.clone();
+                    widget::text(loading_text)
                         .size(50)
                         .center()
                         .into()

@@ -3,6 +3,7 @@ use crate::Message;
 use iced::advanced::graphics::core::font;
 use iced::widget::{column, row, text, Container, Space};
 use iced::{Center, Element, Fill, Font};
+use iced::widget::text::Wrapping;
 
 pub fn profile_info(student: &StudentProfileData) -> Element<'static, Message> {
     let make_text = |content: String, size: u16| {
@@ -31,16 +32,14 @@ pub fn profile_info(student: &StudentProfileData) -> Element<'static, Message> {
             .to_string(),
         16,
     );
-    let class_name = text!("R4-3M").size(12); // TODO: What information from student DB do we need
-                                              // to have for this?
-
-    let space = Space::new(90, 0); // "Nudges" the row so to center it over the document
+    let student_id = make_text(student.display_id.clone(), 10).wrapping(Wrapping::Word);
+    let space = Space::new(150, 0); // "Nudges" the row so to center it over the document
                                    // section
-    let class_column = column![class, class_name].padding([30, 20]);
+    let class_column = column![class,  student_id].padding([30, 20]).max_width(140);
     let name_column = column![name, program].align_x(Center);
     let main = row![space, name_column, class_column];
 
-    let name_container = Container::new(main).width(1024).center_x(Fill).padding(115);
+    let name_container = Container::new(main).width(1024).center_x(Fill).padding([50,155]);
 
     name_container.into()
 

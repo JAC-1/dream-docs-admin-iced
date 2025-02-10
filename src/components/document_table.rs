@@ -42,7 +42,7 @@ pub fn student_documents_table(docs: &Vec<File>) -> Element<'static, Message> {
     let main_column = column![header, scrollable_docs]
         .width(Fill)
         .height(Fill)
-        .align_x(Center);
+        .align_x(Cenger);
     let main_container = Container::new(main_column)
         .padding([0, 78])
         .width(Fill)
@@ -51,19 +51,24 @@ pub fn student_documents_table(docs: &Vec<File>) -> Element<'static, Message> {
 }
 
 fn document_card(doc_info: &File) -> Element<'static, Message> {
+    let clean_doc_info = doc_info.task_type.to_string().clone().replace("_", " ");
+    let shortened_doc_title =  truncate_with_ellipsis(doc_info.file_name.to_string().clone(), 20);
+
+
     let date = doc_info
         .updated_at
         .clone()
         .format("%Y - %m - %d")
         .to_string();
-    let doc_name = text(doc_info.task_type.to_string().clone()).size(20);
-    let date = text(date).size(18);
+    let doc_name = text(clean_doc_info).size(20);
+    let file_name = text(shortened_doc_title).size(12);
+    let date = text(date).size(16);
     let status = status_indicator(doc_info.status.clone(), doc_info.document_id.clone());
     let download = button(text!("Download").size(14).height(29).width(Fill).center())
         .width(Fill)
         .on_press(Message::FetchStudentDoc(doc_info.clone()));
 
-    let doc_info_column = column![doc_name, date].align_x(Center);
+    let doc_info_column = column![doc_name, file_name, date].align_x(Center);
 
     let main_doc_column = column![doc_info_column, status, download]
         .padding(21)
@@ -71,10 +76,10 @@ fn document_card(doc_info: &File) -> Element<'static, Message> {
         .align_x(Center);
 
     Container::new(main_doc_column)
-        .max_height(200)
-        .height(200)
-        .width(170)
-        .max_width(170)
+        .max_height(250)
+        .height(250)
+        .width(200)
+        .max_width(200)
         .style(|_| iced::widget::container::Style {
             background: Some(iced::Background::Color(iced::Color::from_rgb8(
                 248, 248, 248,
@@ -98,4 +103,14 @@ fn status_indicator(status: FileStatus, document_id: String) -> Element<'static,
     // rich_text([span("Error! Please consult Justin")])
     //     .width(FillPortion(1))
     //     .into()
+}
+
+fn truncate_with_ellipsis(s: String, max_len: usize) -> String {
+    if s.len() <= max_len {
+       s
+    } else {
+        let mut truncated = s[..max_len].to_string();
+        truncated.push_str("...");
+        truncated
+    }
 }

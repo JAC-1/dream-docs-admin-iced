@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Clone, Deserialize)]
 pub struct File {
     pub document_id: String,
-    pub file_path: String,
     pub file_name: String,
     pub file_size: i64,
     pub task_type: TaskType,
@@ -22,7 +21,6 @@ impl Default for File {
     fn default() -> Self {
         Self {
             document_id: "".to_string(),
-            file_path: "".to_string(),
             file_name: "".to_string(),
             file_size: 0,
             task_type: TaskType::StudyAbroadAgreement,

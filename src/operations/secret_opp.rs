@@ -73,11 +73,10 @@ impl<'a> Decrypter<'a> {
     fn decrypt_file_key(encrypted_key: &str) -> Result<Vec<u8>> {
         let decoded_test_key = Self::decode_encrypted_base64(encrypted_key)?;
 
-        println!("Decoded Test Key Length: {}", decoded_test_key.len());
 
-        let private_key = std::fs::read_to_string(".private")?;
+        let private_str = include_bytes!("../../.private");
 
-        let rsa = Rsa::private_key_from_pem(private_key.as_bytes()).unwrap();
+        let rsa = Rsa::private_key_from_pem(private_str)?;
         let mut rsa_buffer = vec![0; rsa.size() as usize];
         let decrypted_test_key_length = rsa.private_decrypt(
             &decoded_test_key,
@@ -85,10 +84,8 @@ impl<'a> Decrypter<'a> {
             rsa::Padding::PKCS1_OAEP,
         )?;
 
-        println!("Decrypted Test Key Length: {}", decrypted_test_key_length);
         rsa_buffer.truncate(decrypted_test_key_length);
         let actual_key = BASE64_STANDARD.decode(&rsa_buffer)?;
-        println!("Final Key Length: {}", actual_key.len());
         Ok(actual_key)
     }
 
@@ -134,8 +131,6 @@ impl<'a> Decrypter<'a> {
         let iv = &self.encrypted_data[..16];
         let encrypted_content = &self.encrypted_data[16..];
 
-        println!("IV Length: {}", iv.len());
-        println!("Encrypted Content Length: {}", encrypted_content.len());
 
         let cipher = openssl::symm::Cipher::aes_256_cbc();
         let decrypted_data =
@@ -171,7 +166,6 @@ mod tests {
 
         let decrypted_blob = decrypter.decrypt_symetric_file().unwrap();
         let decrypted_string = String::from_utf8(decrypted_blob.decrypted_data).unwrap();
-        println!("{}", decrypted_string);
         assert_eq!(&decrypted_string, test_data)
     }
 }

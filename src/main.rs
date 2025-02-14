@@ -18,6 +18,7 @@ use models::supabase_models::*;
 use once_cell::sync::Lazy;
 use operations::{Decrypter, FileSaver, FileToSave, SupabaseQuery, TursoQuery};
 use types::FileStatus;
+use crate::types::TaskType;
 
 pub static NOTO_SANS_JP: Font = Font::with_name("Noto Sans JP");
 static SUPABASE_CLIENT: Lazy<SupabaseQuery> = Lazy::new(|| SupabaseQuery::new());
@@ -142,6 +143,7 @@ impl Dashboard {
         full_file_name: String,
         created_at: DateTime<Local>,
         student_name: String,
+        task_type: TaskType
     ) -> Task<Message> {
         Task::perform(
             async move {
@@ -162,6 +164,7 @@ impl Dashboard {
                     full_file_name,
                     student_name,
                     created_at,
+                    task_type
                 ))
             },
             |result: Result<FileToSave, String>| match result {
@@ -196,6 +199,7 @@ impl Dashboard {
                         doc.file_name,
                         student_name.clone(),
                         doc.created_at,
+                        doc.task_type
                     );
                     files_to_save.push(file_to_save);
                 }
@@ -312,6 +316,7 @@ impl Dashboard {
                         file.file_name,
                         file.created_at,
                         selected_student.display_name.clone(),
+                        file.task_type
                     )
                 } else {
                     self.state.error =

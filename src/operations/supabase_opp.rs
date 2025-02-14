@@ -42,7 +42,7 @@ impl SupabaseQuery {
             .from("file_cache")
             .select("*")
             .eq("user_id", &student_id)
-            .order("task_type")
+            .order("created_at.desc")
             .execute()
             .await?;
         let file_list: Vec<File> = serde_json::from_str(&query.text().await?)?;

@@ -42,7 +42,7 @@ pub fn student_documents_table(docs: &Vec<File>) -> Element<'static, Message> {
     let main_column = column![header, scrollable_docs]
         .width(Fill)
         .height(Fill)
-        .align_x(Cenger);
+        .align_x(Center);
     let main_container = Container::new(main_column)
         .padding([0, 78])
         .width(Fill)
@@ -60,6 +60,7 @@ fn document_card(doc_info: &File) -> Element<'static, Message> {
         .clone()
         .format("%Y - %m - %d")
         .to_string();
+    let time = text(doc_info.updated_at.clone().format("%H:%M:%S").to_string()).size(12);
     let doc_name = text(clean_doc_info).size(20);
     let file_name = text(shortened_doc_title).size(12);
     let date = text(date).size(16);
@@ -68,7 +69,7 @@ fn document_card(doc_info: &File) -> Element<'static, Message> {
         .width(Fill)
         .on_press(Message::FetchStudentDoc(doc_info.clone()));
 
-    let doc_info_column = column![doc_name, file_name, date].align_x(Center);
+    let doc_info_column = column![doc_name, file_name, date, time].align_x(Center);
 
     let main_doc_column = column![doc_info_column, status, download]
         .padding(21)

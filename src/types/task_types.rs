@@ -31,28 +31,28 @@ impl TaskType {
 
     pub fn to_str(&self) -> &str {
         match self {
-            TaskType::StudyAbroadAgreement => "Study_Abroad_Agreement",
-            TaskType::PersonalInformationWaiver => "Personal_Information_Waiver",
-            TaskType::WhyStudyInCanada => "Why_I_want_to_Study_in_Canada",
-            TaskType::HomestayLetter => "Homestay_Letter",
+            TaskType::StudyAbroadAgreement => "Study Abroad Agreement",
+            TaskType::PersonalInformationWaiver => "Personal Information Waiver",
+            TaskType::WhyStudyInCanada => "Why I want to Study in Canada",
+            TaskType::HomestayLetter => "Homestay Letter",
             TaskType::Passport => "Passport",
             TaskType::Headshot => "Headshot",
-            TaskType::StudyAbroadApplication => "Study_Abroad_Application",
-            TaskType::ImmunizationRecord => "Immunization_Record",
-            TaskType::FamilyImages => "Family_Images",
+            TaskType::StudyAbroadApplication => "Study Abroad Application",
+            TaskType::ImmunizationRecord => "Immunization Record",
+            TaskType::FamilyImages => "Family Images",
         }
     }
     pub fn to_string(&self) -> String {
         match self {
-            TaskType::StudyAbroadAgreement => "Study_Abroad_Agreement".to_string(),
-            TaskType::PersonalInformationWaiver => "Personal_Information_Waiver".to_string(),
-            TaskType::WhyStudyInCanada => "Why_I_want_to_Study_in_Canada".to_string(),
+            TaskType::StudyAbroadAgreement => "Study Abroad Agreement".to_string(),
+            TaskType::PersonalInformationWaiver => "Personal Information Waiver".to_string(),
+            TaskType::WhyStudyInCanada => "Why I want to Study in Canada".to_string(),
             TaskType::HomestayLetter => "Homestay_Letter".to_string(),
             TaskType::Passport => "Passport".to_string(),
             TaskType::Headshot => "Headshot".to_string(),
-            TaskType::StudyAbroadApplication => "Study_Abroad_Application".to_string(),
-            TaskType::ImmunizationRecord => "Immunization_Record".to_string(),
-            TaskType::FamilyImages => "Family_Images".to_string(),
+            TaskType::StudyAbroadApplication => "Study Abroad Application".to_string(),
+            TaskType::ImmunizationRecord => "Immunization Record".to_string(),
+            TaskType::FamilyImages => "Family Images".to_string(),
         }
     }
 }

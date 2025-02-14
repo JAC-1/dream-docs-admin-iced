@@ -3,6 +3,7 @@ use chrono::{DateTime, Local};
 use rfd::FileDialog;
 use std::path::Path;
 use std::path::PathBuf;
+use crate::types::TaskType;
 
 pub struct FileSaver {
     root: PathBuf,
@@ -14,6 +15,7 @@ pub struct FileToSave {
     file_name: String,
     display_name: String,
     created_at: String,
+    task_type: TaskType,
 }
 
 impl FileToSave {
@@ -22,6 +24,7 @@ impl FileToSave {
         file_name: String,
         display_name: String,
         crated_at: DateTime<Local>,
+        task_type: TaskType,
     ) -> Self {
         FileToSave {
             content,
@@ -33,6 +36,7 @@ impl FileToSave {
                 .next()
                 .unwrap()
                 .to_string(),
+            task_type,
         }
     }
 }
@@ -52,19 +56,20 @@ impl FileSaver {
 
     pub async fn save_individual(&self, file: FileToSave) -> Result<()> {
         let file_name_segment = file.file_name.split(".").collect::<Vec<&str>>();
-        let file_name = file_name_segment.first().unwrap_or(&"").to_string();
+        let file_name = format!("{}({})",file.task_type.to_string(), file.display_name);
         let file_extension = file_name_segment.get(1).unwrap_or(&"").to_string();
         let display_dir = self.root.join(&file.display_name);
         std::fs::create_dir_all(&display_dir)?;
         let file_path = display_dir
             .join(format!(
-                "{}_{}_{}",
-                file.display_name, file_name, file.created_at
+                "{}",
+                file_name
             ))
             .with_extension(file_extension);
         std::fs::write(file_path, file.content)?;
         Ok(())
     }
+
 }
 
 #[cfg(test)]
@@ -87,6 +92,7 @@ mod tests {
             String::from("test.txt"),
             String::from("john johnson"),
             Local::now(),
+            TaskType::FamilyImages
         );
         println!("{:?}", file_saver.save_individual(file).await.unwrap());
     }

@@ -3,6 +3,7 @@ use chrono::{DateTime, Local};
 use rfd::FileDialog;
 use std::path::Path;
 use std::path::PathBuf;
+use std::ffi::OsStr;
 use crate::types::TaskType;
 
 pub struct FileSaver {
@@ -55,18 +56,20 @@ impl FileSaver {
     }
 
     pub async fn save_individual(&self, file: FileToSave) -> Result<()> {
-        let file_name_segment = file.file_name.split(".").collect::<Vec<&str>>();
-        let file_name = format!("{}({})",file.task_type.to_string(), file.display_name);
-        let file_extension = file_name_segment.get(1).unwrap_or(&"").to_string();
-        let display_dir = self.root.join(&file.display_name);
-        std::fs::create_dir_all(&display_dir)?;
-        let file_path = display_dir
-            .join(format!(
-                "{}",
-                file_name
-            ))
-            .with_extension(file_extension);
-        std::fs::write(file_path, file.content)?;
+        let raw_path = Path::new(&file.file_name);
+        let extension = raw_path.extension().unwrap_or(OsStr::new("")).to_str().unwrap_or("");
+        // Use bellow if actual file names are requested
+        // let file_name = raw_path.file_stem().unwrap_or(OsStr::new("unreadable_file_name")).to_str().unwrap_or("unhandlable_file_name");
+        // let clean_file_name = file_name.replace(".", "_");
+        let document_type = &file.task_type.to_string();
+        let first_name = &file.display_name.split(" ").next().unwrap();
+        let last_name = &file.display_name.split(" ").last().unwrap();
+        let file_name = format!("{}({} {})", document_type, first_name, last_name );
+        let dir = self.root.join(&file.display_name);
+        std::fs::create_dir_all(&dir)?;
+        // let final_path = dir.join(clean_file_name).with_extension(extension);
+        let final_path = dir.join(file_name).with_extension(extension);
+        std::fs::write(final_path, file.content)?;
         Ok(())
     }
 

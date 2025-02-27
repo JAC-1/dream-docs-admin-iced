@@ -2,6 +2,7 @@ use super::{
     document_table::student_documents_table, student_profile_info::profile_info,
     students_table::students_table,
 };
+use crate::components::login::login;
 use crate::models::supabase_models::*;
 use crate::styles::button_styles::custom_program_button;
 use crate::Message;
@@ -71,4 +72,9 @@ pub fn student_profile(
     container(column![profile_container, document_table])
         .center_x(Fill)
         .into()
+}
+
+pub fn login_view(password_content: &str, salt_content: &str) -> Element<'static, Message> {
+    let login = login(password_content, salt_content);
+    Container::new(login).center(Fill).into()
 }

@@ -1,9 +1,9 @@
 #![windows_subsystem = "windows"]
-use std::{collections::HashMap, path::PathBuf, env};
+use std::{collections::HashMap, env, path::PathBuf};
 
 use chrono::{DateTime, Local};
-use iced::{widget, Center, Element, Fill, Font, Task};
 use iced::widget::Container;
+use iced::{widget, Center, Element, Fill, Font, Task};
 
 mod components;
 mod custom_settings;
@@ -12,13 +12,13 @@ mod operations;
 mod sample_data;
 mod styles;
 mod types;
+use crate::types::TaskType;
 use components::{navbar, views};
 use custom_settings::window_settings;
 use models::supabase_models::*;
 use once_cell::sync::Lazy;
-use operations::{Decrypter, FileSaver, FileToSave, SupabaseQuery, TursoQuery};
+use operations::{Decrypter, FileSaver, FileToSave, LoginAuth, SupabaseQuery, TursoQuery};
 use types::FileStatus;
-use crate::types::TaskType;
 
 pub static NOTO_SANS_JP: Font = Font::with_name("Noto Sans JP");
 static SUPABASE_CLIENT: Lazy<SupabaseQuery> = Lazy::new(|| SupabaseQuery::new());
@@ -29,11 +29,16 @@ fn parse_env(env_str: &str) -> HashMap<String, String> {
         .filter(|line| !line.trim().is_empty() && !line.starts_with('#')) // Ignore comments and empty lines
         .filter_map(|line| {
             let mut parts = line.splitn(2, '=');
-            Some((parts.next()?.trim().to_string(), parts.next()?.trim().to_string()))
+            Some((
+                parts.next()?.trim().to_string(),
+                parts.next()?.trim().to_string(),
+            ))
         })
         .collect()
 }
 
+const ENC_ENV_FILE_1: &[u8; 191] = include_bytes!("../Io5el.env.enc");
+const ENC_ENV_FILE_2: &[u8; 191] = include_bytes!("../eEwMO.env.enc");
 
 fn main() -> iced::Result {
     let env_vars = parse_env(ENV_FILE);
@@ -58,6 +63,10 @@ struct DashboardState {
     doc_to_save: Option<FileToSave>,
     docs_to_save: Option<Vec<FileToSave>>,
     is_loading: bool,
+    is_authed: bool,
+    password_content: String,
+    salt_content: String,
+    env_state: HashMap<String, String>,
     error: Option<String>,
     current_view: View,
     save_root: Option<PathBuf>,
@@ -66,6 +75,7 @@ struct DashboardState {
 #[derive(Debug, Clone, Default)]
 pub enum View {
     #[default]
+    Login,
     Students,
     Home,
     StudentProfile,
@@ -80,6 +90,9 @@ struct Dashboard {
 pub enum Message {
     SetView(View),
     SetLoading(bool),
+    SetSaltInputChange(String),
+    SetLogin(String, String),
+    SetPasswordInputChange(String),
     SetError(Option<String>),
     ClearError,
     SetStudents(Vec<StudentProfileData>),
@@ -143,7 +156,7 @@ impl Dashboard {
         full_file_name: String,
         created_at: DateTime<Local>,
         student_name: String,
-        task_type: TaskType
+        task_type: TaskType,
     ) -> Task<Message> {
         Task::perform(
             async move {
@@ -164,7 +177,7 @@ impl Dashboard {
                     full_file_name,
                     student_name,
                     created_at,
-                    task_type
+                    task_type,
                 ))
             },
             |result: Result<FileToSave, String>| match result {
@@ -199,7 +212,7 @@ impl Dashboard {
                         doc.file_name,
                         student_name.clone(),
                         doc.created_at,
-                        doc.task_type
+                        doc.task_type,
                     );
                     files_to_save.push(file_to_save);
                 }
@@ -272,6 +285,36 @@ impl Dashboard {
                 self.state.is_loading = is_loading;
                 Task::none()
             }
+            Message::SetLogin(password, salt) => {
+                let env_vec = vec![ENC_ENV_FILE_1.to_vec(), ENC_ENV_FILE_2.to_vec()];
+                let auth_process = LoginAuth::new(password, salt, env_vec);
+                let env = auth_process.try_decrypt_env().unwrap();
+                match auth_process.parse_plain_text_to_hashmap(env) {
+                    Ok(env_hash) => {
+                        self.state.env_state = env_hash;
+                        self.state.is_authed = true;
+                        self.state.current_view = View::Students;
+                        // let first_entry = env_hash.get("SECRET").unwrap();
+                        // let debug_string = format!(
+                        //     "{:?}, {:?}, {}",
+                        //     auth_process.raw_password, auth_process.salt, first_entry
+                        // );
+                        // self.state.error = Some(debug_string);
+                    }
+                    Err(e) => {
+                        self.state.error = Some(e);
+                    }
+                }
+                Task::none()
+            }
+            Message::SetSaltInputChange(salt) => {
+                self.state.salt_content = salt;
+                Task::none()
+            }
+            Message::SetPasswordInputChange(content) => {
+                self.state.password_content = content;
+                Task::none()
+            }
             Message::SetStudents(students) => {
                 self.state.students = students;
                 self.state.loading_message = "Loading students".to_string();
@@ -316,7 +359,7 @@ impl Dashboard {
                         file.file_name,
                         file.created_at,
                         selected_student.display_name.clone(),
-                        file.task_type
+                        file.task_type,
                     )
                 } else {
                     self.state.error =
@@ -432,19 +475,42 @@ impl Dashboard {
                             .on_press(Message::SetView(View::Students))
                             .on_press(Message::ClearError)
                     ]
-                    .spacing(20).width(Fill).height(Fill).align_x(Center);
-                    Container::new(error_column).width(Fill).height(Fill).center(Fill).padding(78).into()
+                    .spacing(20)
+                    .width(Fill)
+                    .height(Fill)
+                    .align_x(Center);
+                    Container::new(error_column)
+                        .width(Fill)
+                        .height(Fill)
+                        .center(Fill)
+                        .padding(78)
+                        .into()
                 } else {
                     views::students_view(&self.state.students)
+                }
+            }
+            View::Login => {
+                if self.state.is_loading {
+                    let loading_text = self.state.loading_message.clone();
+                    widget::text(loading_text).size(50).center().into()
+                } else if let Some(err) = &self.state.error {
+                    widget::column![
+                        widget::text("Login failed").size(40),
+                        widget::text(err),
+                        widget::button("Back")
+                            .on_press(Message::SetView(View::Login))
+                            .on_press(Message::ClearError)
+                    ]
+                    .spacing(20)
+                    .into()
+                } else {
+                    views::login_view(&self.state.password_content, &self.state.salt_content)
                 }
             }
             View::StudentProfile => {
                 if self.state.is_loading {
                     let loading_text = self.state.loading_message.clone();
-                    widget::text(loading_text)
-                        .size(50)
-                        .center()
-                        .into()
+                    widget::text(loading_text).size(50).center().into()
                 } else if let Some(err) = &self.state.error {
                     widget::column![
                         widget::text("Something went wrong..").size(40),

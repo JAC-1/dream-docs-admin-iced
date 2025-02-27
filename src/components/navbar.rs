@@ -16,6 +16,7 @@ pub fn nav_bar() -> Element<'static, Message> {
     row![
         horizontal_space(),
         // nav_button(String::from("Classes"), Message::SetView(View::Home)),
+        nav_button(String::from("Login"), Message::SetView(View::Login)),
         nav_button(String::from("Students"), Message::SetView(View::Students)),
         nav_button(String::from("閉じる"), Message::Close),
     ]

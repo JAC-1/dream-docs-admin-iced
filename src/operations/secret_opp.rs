@@ -107,10 +107,11 @@ impl<'a> Decrypter<'a> {
             .map_err(|err| anyhow::format_err!("Unable to decode the string from BASE64: {}", err))
     }
 
-    /// Decrypts a symmetrically encrypted file using AES-256-CBC.
+    /// Decrypts a symmetrically encrypted file using AES-256-GCM.
     ///
-    /// The function assumes that the first 16 bytes of the encrypted data contain
-    /// the initialization vector (IV), and the rest is the encrypted content.
+    /// The function assumes that the first 12 bytes of the encrypted data contain
+    /// the initialization vector (IV), followed by the encrypted content and a 16-byte
+    /// authentication tag.
     ///
     /// # Returns
     ///
@@ -120,7 +121,7 @@ impl<'a> Decrypter<'a> {
     /// # Errors
     ///
     /// This function will return an error if the decryption process fails due to
-    /// invalid key, IV, or corrupted encrypted content.
+    /// invalid key, IV, corrupted encrypted content, or authentication tag mismatch.
     pub fn decrypt_symetric_file(&self) -> Result<Self> {
         // First 16 bytes are the IV
 
@@ -128,10 +129,14 @@ impl<'a> Decrypter<'a> {
         let encrypted_content = &self.encrypted_data[12..];
 
         let cipher = openssl::symm::Cipher::aes_256_gcm();
-        // For GCM, the last 16 bytes are the authentication tag
+
+        // In GCM there is an encryption tag that comes along with an authentication tag.
+        // GCM is an AEAD cipher (Authenticated Encryption with Assoicated Data) have authentication tags.
+        // The tag has a length of 16 and is appended at the end
         let tag_size = 16;
         let (encrypted_data, tag) = encrypted_content.split_at(encrypted_content.len() - tag_size);
 
+        // We create a context
         let mut decrypt_context = openssl::symm::Crypter::new(
             cipher,
             openssl::symm::Mode::Decrypt,
@@ -139,12 +144,18 @@ impl<'a> Decrypter<'a> {
             Some(iv),
         )?;
 
+        // We set the tag
         decrypt_context.set_tag(tag)?;
 
+        // We then extract the data from the tag and prepare a buffer to receive the decrypted data.
+        // We then update the context so that it compares the encrypted_data to the decrypted data by feeding it through the decryption cipher.
+        // The length of 'count' becomes the length of the result of 'feeding' the encrypted data to the update cipher and storing the intermediate decrypted data.
+        // The 'rest' count comes from finalizing the decryption process and writing any remaining decrypted bytes.
         let mut decrypted_data = vec![0; encrypted_data.len()];
         let count = decrypt_context.update(encrypted_data, &mut decrypted_data)?;
         let rest = decrypt_context.finalize(&mut decrypted_data[count..])?;
 
+        // The decrypted data is then truncated to the actual decrypted length, as the original encrypted_data length includes padding.
         decrypted_data.truncate(count + rest);
 
         Ok(Decrypter {

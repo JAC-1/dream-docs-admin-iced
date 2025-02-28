@@ -2,7 +2,7 @@ use crate::models::supabase_models::*;
 use crate::types::FileStatus;
 use crate::Message;
 use iced::widget::{button, column, pick_list, row, scrollable, text, Container, Space};
-use iced::{Alignment, Center, Element, Fill};
+use iced::{Center, Element, Fill};
 
 pub fn student_documents_table(docs: &Vec<File>) -> Element<'static, Message> {
     if docs.is_empty() {
@@ -52,8 +52,7 @@ pub fn student_documents_table(docs: &Vec<File>) -> Element<'static, Message> {
 
 fn document_card(doc_info: &File) -> Element<'static, Message> {
     let clean_doc_info = doc_info.task_type.to_string().clone().replace("_", " ");
-    let shortened_doc_title =  truncate_with_ellipsis(doc_info.file_name.to_string().clone(), 20);
-
+    let shortened_doc_title = truncate_with_ellipsis(doc_info.file_name.to_string().clone(), 20);
 
     let date = doc_info
         .updated_at
@@ -108,7 +107,7 @@ fn status_indicator(status: FileStatus, document_id: String) -> Element<'static,
 
 fn truncate_with_ellipsis(s: String, max_len: usize) -> String {
     if s.len() <= max_len {
-       s
+        s
     } else {
         let mut truncated = s[..max_len].to_string();
         truncated.push_str("...");

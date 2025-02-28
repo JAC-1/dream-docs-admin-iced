@@ -1,5 +1,5 @@
 use crate::{Message, View};
-use iced::widget::{button, horizontal_space, rich_text, row, span, Text};
+use iced::widget::{button, horizontal_space, row, Text};
 use iced::{Element, Fill, Font};
 
 pub fn nav_bar() -> Element<'static, Message> {

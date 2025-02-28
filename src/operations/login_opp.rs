@@ -4,30 +4,26 @@ use std::num::NonZeroU32;
 
 pub struct LoginAuth {
     pub raw_password: String,
-    pub salt: String,
-    nonce_len: usize,
     itterations: u32,
     pub enc_envs: Vec<Vec<u8>>,
 }
 
 impl LoginAuth {
-    pub fn new(raw_password: String, salt: String, enc_envs: Vec<Vec<u8>>) -> Self {
+    pub fn new(raw_password: String, enc_envs: Vec<Vec<u8>>) -> Self {
         println!("Creating LoginAuth");
         LoginAuth {
             raw_password,
-            salt,
-            nonce_len: 12,
             itterations: 100_000,
             enc_envs,
         }
     }
 
-    pub fn derive_key(&self) -> [u8; 32] {
+    fn derive_key(&self, salt: [u8; 16]) -> [u8; 32] {
         let mut key = [0u8; 32];
         pbkdf2::derive(
             pbkdf2::PBKDF2_HMAC_SHA256,
             NonZeroU32::new(self.itterations).unwrap(),
-            self.salt.as_bytes(),
+            &salt,
             self.raw_password.as_bytes(),
             &mut key,
         );
@@ -37,16 +33,21 @@ impl LoginAuth {
     // Function that tries all .envs in the env_paths and returns the first one that can be
     // decrypted
     pub fn try_decrypt_env(&self) -> Result<Vec<u8>, String> {
-        let key_bytes = self.derive_key();
-        let key =
-            UnboundKey::new(&AES_256_GCM, &key_bytes).map_err(|e| format!("Key error: {:?}", e))?;
-        let key = LessSafeKey::new(key);
-        for (index, enc_env) in self.enc_envs.iter().enumerate() {
-            let (nonce, ciphertext) = enc_env.split_at(self.nonce_len);
-            println!(
-                "Trying to decrypt env file {}: nonece: {:?}, ciphertext: {:?}",
-                index, nonce, ciphertext
+        const SALT_LEN: usize = 16;
+        const NONCE_LEN: usize = 12;
+        for enc_env in self.enc_envs.iter() {
+            let (salt, rest) = enc_env.split_at(SALT_LEN);
+            let (nonce, ciphertext) = rest.split_at(NONCE_LEN);
+
+            // TODO: Handle unwrap
+            let key_bytes = self.derive_key(
+                salt.try_into()
+                    .map_err(|e| format!("Salt conversion error: {:?}", e))?,
             );
+            let key = UnboundKey::new(&AES_256_GCM, &key_bytes)
+                .map_err(|e| format!("Key creation error: {:?}", e))?;
+            let key = LessSafeKey::new(key);
+
             match key.open_in_place(
                 Nonce::assume_unique_for_key(
                     nonce
@@ -57,7 +58,7 @@ impl LoginAuth {
                 &mut ciphertext.to_vec(),
             ) {
                 Ok(plain_text) => {
-                    println!("Decryption successful for env file {}", index);
+                    println!("Decryption successful for env file.");
                     return Ok(plain_text.to_vec());
                 }
                 Err(_) => continue,

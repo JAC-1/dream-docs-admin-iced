@@ -74,7 +74,7 @@ pub fn student_profile(
         .into()
 }
 
-pub fn login_view(password_content: &str, salt_content: &str) -> Element<'static, Message> {
-    let login = login(password_content, salt_content);
+pub fn login_view(password_content: &str) -> Element<'static, Message> {
+    let login = login(password_content);
     Container::new(login).center(Fill).into()
 }

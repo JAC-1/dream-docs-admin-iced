@@ -38,7 +38,7 @@ fn parse_env(env_str: &str) -> HashMap<String, String> {
 }
 
 const ENC_ENV_FILE_1: &[u8; 191] = include_bytes!("../Io5el.env.enc");
-const ENC_ENV_FILE_2: &[u8; 191] = include_bytes!("../eEwMO.env.enc");
+const ENC_ENV_FILE_2: &[u8; 80] = include_bytes!("../FxnZx.env.enc");
 
 fn main() -> iced::Result {
     let env_vars = parse_env(ENV_FILE);
@@ -91,7 +91,7 @@ pub enum Message {
     SetView(View),
     SetLoading(bool),
     SetSaltInputChange(String),
-    SetLogin(String, String),
+    SetLogin(String),
     SetPasswordInputChange(String),
     SetError(Option<String>),
     ClearError,
@@ -285,21 +285,30 @@ impl Dashboard {
                 self.state.is_loading = is_loading;
                 Task::none()
             }
-            Message::SetLogin(password, salt) => {
+            Message::SetLogin(password) => {
                 let env_vec = vec![ENC_ENV_FILE_1.to_vec(), ENC_ENV_FILE_2.to_vec()];
-                let auth_process = LoginAuth::new(password, salt, env_vec);
-                let env = auth_process.try_decrypt_env().unwrap();
-                match auth_process.parse_plain_text_to_hashmap(env) {
-                    Ok(env_hash) => {
-                        self.state.env_state = env_hash;
-                        self.state.is_authed = true;
-                        self.state.current_view = View::Students;
-                        // let first_entry = env_hash.get("SECRET").unwrap();
-                        // let debug_string = format!(
-                        //     "{:?}, {:?}, {}",
-                        //     auth_process.raw_password, auth_process.salt, first_entry
-                        // );
-                        // self.state.error = Some(debug_string);
+                let password = password.trim().to_string();
+                let auth_process = LoginAuth::new(password, env_vec);
+                // TODO: Handle unwrap
+                // let env = auth_process.try_decrypt_env().unwrap();
+                match auth_process.try_decrypt_env() {
+                    Ok(env) => {
+                        match auth_process.parse_plain_text_to_hashmap(env) {
+                            Ok(env_hash) => {
+                                self.state.env_state = env_hash;
+                                self.state.is_authed = true;
+                                self.state.current_view = View::Students;
+                                // let first_entry = env_hash.get("SECRET").unwrap();
+                                // let debug_string = format!(
+                                //     "{:?}, {:?}, {}",
+                                //     auth_process.raw_password, auth_process.salt, first_entry
+                                // );
+                                // self.state.error = Some(debug_string);
+                            }
+                            Err(e) => {
+                                self.state.error = Some(e);
+                            }
+                        }
                     }
                     Err(e) => {
                         self.state.error = Some(e);
@@ -504,7 +513,7 @@ impl Dashboard {
                     .spacing(20)
                     .into()
                 } else {
-                    views::login_view(&self.state.password_content, &self.state.salt_content)
+                    views::login_view(&self.state.password_content)
                 }
             }
             View::StudentProfile => {

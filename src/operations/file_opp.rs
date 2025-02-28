@@ -1,10 +1,10 @@
+use crate::types::TaskType;
 use anyhow::Result;
 use chrono::{DateTime, Local};
 use rfd::FileDialog;
+use std::ffi::OsStr;
 use std::path::Path;
 use std::path::PathBuf;
-use std::ffi::OsStr;
-use crate::types::TaskType;
 
 pub struct FileSaver {
     root: PathBuf,
@@ -57,14 +57,18 @@ impl FileSaver {
 
     pub async fn save_individual(&self, file: FileToSave) -> Result<()> {
         let raw_path = Path::new(&file.file_name);
-        let extension = raw_path.extension().unwrap_or(OsStr::new("")).to_str().unwrap_or("");
+        let extension = raw_path
+            .extension()
+            .unwrap_or(OsStr::new(""))
+            .to_str()
+            .unwrap_or("");
         // Use bellow if actual file names are requested
         // let file_name = raw_path.file_stem().unwrap_or(OsStr::new("unreadable_file_name")).to_str().unwrap_or("unhandlable_file_name");
         // let clean_file_name = file_name.replace(".", "_");
         let document_type = &file.task_type.to_string();
         let first_name = &file.display_name.split(" ").next().unwrap();
         let last_name = &file.display_name.split(" ").last().unwrap();
-        let file_name = format!("{}({} {})", document_type, first_name, last_name );
+        let file_name = format!("{}({} {})", document_type, first_name, last_name);
         let dir = self.root.join(&file.display_name);
         std::fs::create_dir_all(&dir)?;
         // let final_path = dir.join(clean_file_name).with_extension(extension);
@@ -72,7 +76,6 @@ impl FileSaver {
         std::fs::write(final_path, file.content)?;
         Ok(())
     }
-
 }
 
 #[cfg(test)]
@@ -95,7 +98,7 @@ mod tests {
             String::from("test.txt"),
             String::from("john johnson"),
             Local::now(),
-            TaskType::FamilyImages
+            TaskType::FamilyImages,
         );
         println!("{:?}", file_saver.save_individual(file).await.unwrap());
     }

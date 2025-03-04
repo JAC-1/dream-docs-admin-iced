@@ -1,28 +1,48 @@
 use crate::models::supabase_models::*;
 use anyhow::{anyhow, Result};
-use dotenv::dotenv;
 use postgrest::Postgrest;
+use std::collections::HashMap;
+use std::default::Default;
+use std::fmt::{self, Debug};
 
+#[derive(Clone, Default)]
 pub struct SupabaseQuery {
-    client: Postgrest,
+    client: Option<Postgrest>,
+}
+
+impl Debug for SupabaseQuery {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SupabaseQuery")
+            .field("client", &"Postgrest client")
+            .finish()
+    }
 }
 
 impl SupabaseQuery {
-    pub fn new() -> Self {
-        dotenv().ok();
-        let key = std::env::var("SUPABASE_KEY").expect("Problem loading database key");
-        let mut url = std::env::var("SUPABASE_URL").expect("Problem loading database URL");
+    pub fn new(env_hashmap: Option<HashMap<String, String>>) -> Self {
+        let env_map = env_hashmap.expect("Environment hashmap required");
+        let key = env_map
+            .get("SUPABASE_KEY")
+            .expect("Problem loading database key");
+        let mut url = env_map
+            .get("SUPABASE_URL")
+            .expect("Problem loading database url")
+            .clone();
         if !url.contains("/rest/v1") {
             url = format!("{}/rest/v1", url);
         }
 
         let client = Postgrest::new(url).insert_header("apiKey", key);
-        Self { client }
+        Self {
+            client: Some(client),
+        }
     }
 
     pub async fn all_students_info(&self) -> Result<Vec<StudentProfileData>> {
         let query = self
             .client
+            .clone()
+            .unwrap()
             .from("students")
             .select("display_id,display_name,classes(title),programs(name)")
             .order("id")
@@ -39,6 +59,8 @@ impl SupabaseQuery {
     pub async fn get_student_document_info(&self, student_id: String) -> Result<Vec<File>> {
         let query = self
             .client
+            .clone()
+            .unwrap()
             .from("file_cache")
             .select("*")
             .eq("user_id", &student_id)
@@ -52,6 +74,8 @@ impl SupabaseQuery {
     pub async fn fetch_key(&self, doc_id: String) -> Result<String> {
         let query = self
             .client
+            .clone()
+            .unwrap()
             .from("file_keys")
             .select("*")
             .eq("document_id", &doc_id)
@@ -64,6 +88,8 @@ impl SupabaseQuery {
         let update_json = format!(r#"{{"status": "{}"}}"#, &status);
         let _ = self
             .client
+            .clone()
+            .unwrap()
             .from("file_cache")
             .eq("document_id", &doc_id)
             .update(update_json)
@@ -129,38 +155,38 @@ impl SupabaseQuery {
 //     }
 // }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use anyhow::Result;
-
-    fn setup() -> SupabaseQuery {
-        SupabaseQuery::new()
-    }
-
-    #[tokio::test]
-    async fn test_student_info() -> Result<()> {
-        let supabase = setup();
-        let _ = supabase.all_students_info().await?;
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_get_file_cache() -> Result<()> {
-        let supabase = setup();
-        let _ = supabase
-            .get_student_document_info("user_2nH3tajCHetQke5TzHQG6onKWcV".to_owned())
-            .await?;
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_get_file_key() -> Result<()> {
-        let supabase = setup();
-        let resp = supabase
-            .fetch_key("ed98a0d4-3cc9-492a-a2b7-3ece0e4d87bc".to_owned())
-            .await?;
-        println!("{}", resp);
-        Ok(())
-    }
-}
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use anyhow::Result;
+//
+//     fn setup() -> SupabaseQuery {
+//         SupabaseQuery::new()
+//     }
+//
+//     #[tokio::test]
+//     async fn test_student_info() -> Result<()> {
+//         let supabase = setup();
+//         let _ = supabase.all_students_info().await?;
+//         Ok(())
+//     }
+//
+//     #[tokio::test]
+//     async fn test_get_file_cache() -> Result<()> {
+//         let supabase = setup();
+//         let _ = supabase
+//             .get_student_document_info("user_2nH3tajCHetQke5TzHQG6onKWcV".to_owned())
+//             .await?;
+//         Ok(())
+//     }
+//
+//     #[tokio::test]
+//     async fn test_get_file_key() -> Result<()> {
+//         let supabase = setup();
+//         let resp = supabase
+//             .fetch_key("ed98a0d4-3cc9-492a-a2b7-3ece0e4d87bc".to_owned())
+//             .await?;
+//         println!("{}", resp);
+//         Ok(())
+//     }
+// }

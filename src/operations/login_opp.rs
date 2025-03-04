@@ -1,5 +1,6 @@
 use ring::aead::{Aad, LessSafeKey, Nonce, UnboundKey, AES_256_GCM};
 use ring::pbkdf2;
+use std::collections::HashMap;
 use std::num::NonZeroU32;
 
 pub struct LoginAuth {
@@ -70,10 +71,10 @@ impl LoginAuth {
     pub fn parse_plain_text_to_hashmap(
         &self,
         plain_text: Vec<u8>,
-    ) -> Result<std::collections::HashMap<String, String>, String> {
+    ) -> Result<HashMap<String, String>, String> {
         let plain_text =
             String::from_utf8(plain_text).map_err(|e| format!("UTF-8 error: {:?}", e))?;
-        let mut env_map = std::collections::HashMap::new();
+        let mut env_map = HashMap::new();
 
         for line in plain_text.lines() {
             if line.is_empty() {
@@ -89,5 +90,6 @@ impl LoginAuth {
             env_map.insert(key.to_string(), value.to_string());
         }
         Ok(env_map)
+        // Ok(plain_text)
     }
 }

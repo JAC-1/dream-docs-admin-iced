@@ -16,12 +16,10 @@ use crate::types::TaskType;
 use components::{navbar, views};
 use custom_settings::window_settings;
 use models::supabase_models::*;
-use once_cell::sync::Lazy;
 use operations::{Decrypter, FileSaver, FileToSave, LoginAuth, SupabaseQuery, TursoQuery};
 use types::FileStatus;
 
 pub static NOTO_SANS_JP: Font = Font::with_name("Noto Sans JP");
-static SUPABASE_CLIENT: Lazy<SupabaseQuery> = Lazy::new(|| SupabaseQuery::new());
 const ENV_FILE: &str = include_str!("../.env");
 fn parse_env(env_str: &str) -> HashMap<String, String> {
     env_str
@@ -37,8 +35,8 @@ fn parse_env(env_str: &str) -> HashMap<String, String> {
         .collect()
 }
 
-const ENC_ENV_FILE_1: &[u8; 191] = include_bytes!("../Io5el.env.enc");
-const ENC_ENV_FILE_2: &[u8; 80] = include_bytes!("../FxnZx.env.enc");
+const ENC_ENV_FILE_1: &[u8; 614] = include_bytes!("../h0DR0.env.enc");
+const ENC_ENV_FILE_2: &[u8; 614] = include_bytes!("../h0DR0.env.enc");
 
 fn main() -> iced::Result {
     let env_vars = parse_env(ENV_FILE);
@@ -67,6 +65,7 @@ struct DashboardState {
     password_content: String,
     salt_content: String,
     env_state: HashMap<String, String>,
+    supabase_client: SupabaseQuery,
     error: Option<String>,
     current_view: View,
     save_root: Option<PathBuf>,
@@ -81,7 +80,7 @@ pub enum View {
     StudentProfile,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Dashboard {
     state: DashboardState,
 }
@@ -89,6 +88,7 @@ struct Dashboard {
 #[derive(Debug, Clone)]
 pub enum Message {
     SetView(View),
+    InitiateLogin,
     SetLoading(bool),
     SetSaltInputChange(String),
     SetLogin(String),
@@ -117,14 +117,15 @@ impl Dashboard {
             Self {
                 state: DashboardState::default(),
             },
-            Self::load_students(),
+            Task::perform(async { Message::InitiateLogin }, |msg| msg),
         )
     }
 
-    fn load_students() -> Task<Message> {
+    fn load_students(env_hash: HashMap<String, String>) -> Task<Message> {
         Task::perform(
             async {
-                SUPABASE_CLIENT
+                let supabase_client = SupabaseQuery::new(Some(env_hash));
+                supabase_client
                     .all_students_info()
                     .await
                     .map_err(|e| e.to_string())
@@ -136,10 +137,13 @@ impl Dashboard {
         )
     }
 
-    fn get_student_docs(student: StudentProfileData) -> Task<Message> {
+    fn get_student_docs(
+        supabase_client: SupabaseQuery,
+        student: StudentProfileData,
+    ) -> Task<Message> {
         Task::perform(
             async move {
-                SUPABASE_CLIENT
+                supabase_client
                     .get_student_document_info(student.display_id.clone())
                     .await
                     .map_err(|e| e.to_string())
@@ -152,6 +156,7 @@ impl Dashboard {
     }
 
     fn get_student_doc(
+        supabase_client: SupabaseQuery,
         doc_id: String,
         full_file_name: String,
         created_at: DateTime<Local>,
@@ -160,7 +165,7 @@ impl Dashboard {
     ) -> Task<Message> {
         Task::perform(
             async move {
-                let enc_key = SUPABASE_CLIENT
+                let enc_key = supabase_client
                     .fetch_key(doc_id.clone())
                     .await
                     .map_err(|e| e.to_string())?;
@@ -187,12 +192,16 @@ impl Dashboard {
         )
     }
 
-    fn download_all_docs(docs: Vec<File>, student_name: String) -> Task<Message> {
+    fn download_all_docs(
+        supabase_client: SupabaseQuery,
+        docs: Vec<File>,
+        student_name: String,
+    ) -> Task<Message> {
         Task::perform(
             async move {
                 let mut files_to_save: Vec<FileToSave> = vec![];
                 for doc in docs {
-                    let enc_key = SUPABASE_CLIENT
+                    let enc_key = supabase_client
                         .fetch_key(doc.document_id.clone())
                         .await
                         .map_err(|e| e.to_string())?;
@@ -247,10 +256,14 @@ impl Dashboard {
         )
     }
 
-    fn update_file_status(status_string: String, doc_id: String) -> Task<Message> {
+    fn update_file_status(
+        supabase_client: SupabaseQuery,
+        status_string: String,
+        doc_id: String,
+    ) -> Task<Message> {
         Task::perform(
-            async {
-                SUPABASE_CLIENT
+            async move {
+                supabase_client
                     .update_doc_status(status_string, doc_id)
                     .await
                     .map_err(|e| e.to_string())
@@ -281,35 +294,38 @@ impl Dashboard {
                 self.state.current_view = view;
                 Task::none()
             }
+            Message::InitiateLogin => {
+                self.state.current_view = View::Login;
+                Task::none()
+            }
             Message::SetLoading(is_loading) => {
                 self.state.is_loading = is_loading;
                 Task::none()
             }
+            // Message::LoadStudents => {
+            //     Self::load_students(self.state.env_state.clone());
+            //     Task::none()
+            // }
             Message::SetLogin(password) => {
                 let env_vec = vec![ENC_ENV_FILE_1.to_vec(), ENC_ENV_FILE_2.to_vec()];
                 let password = password.trim().to_string();
                 let auth_process = LoginAuth::new(password, env_vec);
-                // TODO: Handle unwrap
-                // let env = auth_process.try_decrypt_env().unwrap();
                 match auth_process.try_decrypt_env() {
-                    Ok(env) => {
-                        match auth_process.parse_plain_text_to_hashmap(env) {
-                            Ok(env_hash) => {
-                                self.state.env_state = env_hash;
-                                self.state.is_authed = true;
-                                self.state.current_view = View::Students;
-                                // let first_entry = env_hash.get("SECRET").unwrap();
-                                // let debug_string = format!(
-                                //     "{:?}, {:?}, {}",
-                                //     auth_process.raw_password, auth_process.salt, first_entry
-                                // );
-                                // self.state.error = Some(debug_string);
-                            }
-                            Err(e) => {
-                                self.state.error = Some(e);
-                            }
+                    Ok(env) => match auth_process.parse_plain_text_to_hashmap(env) {
+                        Ok(env_hash) => {
+                            let supabase = SupabaseQuery::new(Some(env_hash.clone()));
+                            self.state.supabase_client = supabase;
+                            self.state.env_state = env_hash.clone();
+                            self.state.is_authed = true;
+                            self.state.current_view = View::Students;
+                            self.state.loading_message = "Loading students...".to_string();
+                            return Self::load_students(env_hash);
+                            // self.state.error = env_hash.into();
                         }
-                    }
+                        Err(e) => {
+                            self.state.error = Some(e);
+                        }
+                    },
                     Err(e) => {
                         self.state.error = Some(e);
                     }
@@ -351,7 +367,7 @@ impl Dashboard {
                 self.state.loading_message = "Loading student profiles...".to_string();
                 self.state.is_loading = true;
                 self.state.loading_message = "Loading Student Profile...".to_string();
-                Self::get_student_docs(student)
+                Self::get_student_docs(self.state.supabase_client.clone(), student)
             }
             Message::SetDocuments(student_docs) => {
                 self.state.selected_student_docs = student_docs;
@@ -364,6 +380,7 @@ impl Dashboard {
                         "Fetching and preparing selected document...".to_string();
                     self.state.is_loading = true;
                     Self::get_student_doc(
+                        self.state.supabase_client.clone(),
                         file.document_id,
                         file.file_name,
                         file.created_at,
@@ -415,6 +432,7 @@ impl Dashboard {
                         "Downloading and processing all docs ...".to_string();
                     self.state.is_loading = true;
                     Self::download_all_docs(
+                        self.state.supabase_client.clone(),
                         self.state.selected_student_docs.clone(),
                         student.display_name.clone(),
                     )
@@ -455,13 +473,15 @@ impl Dashboard {
             Message::DocumentStatusSelected(file_status, doc_id) => {
                 // self.state.is_loading = true;
                 let status_string = file_status.clone().to_str().to_string();
-                Self::update_file_status(status_string, doc_id)
+                Self::update_file_status(self.state.supabase_client.clone(), status_string, doc_id)
             }
             Message::UpdatedDocStatus(message) => {
                 println!("{}", message);
                 self.state.current_view = View::StudentProfile;
                 match self.state.selected_student.clone() {
-                    Some(student) => Self::get_student_docs(student),
+                    Some(student) => {
+                        Self::get_student_docs(self.state.supabase_client.clone(), student)
+                    }
                     None => Task::none(),
                 }
             }

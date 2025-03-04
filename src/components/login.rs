@@ -6,5 +6,6 @@ pub fn login(password_content: &str) -> Element<'static, Message> {
     let password_input =
         text_input("Enter password..", password_content).on_input(Message::SetPasswordInputChange);
     let button = button("Login").on_press(Message::SetLogin(password_content.to_string()));
+    // .on_press(Message::LoadStudents);
     row![password_input, button].width(Fill).padding(10).into()
 }

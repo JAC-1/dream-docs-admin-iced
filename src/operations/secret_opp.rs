@@ -2,7 +2,6 @@ use anyhow::Result;
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use openssl::rsa::{self, Rsa};
 
-use std::io::Read;
 
 pub struct Decrypter<'a> {
     decrypted_key: Vec<u8>,

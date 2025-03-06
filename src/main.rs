@@ -205,9 +205,16 @@ impl Dashboard {
         Task::perform(
             async move {
                 let mut files_to_save: Vec<FileToSave> = vec![];
-                let mut sorted_docs = docs.clone();
-                sorted_docs.sort_by(|a, b| b.created_at.cmp(&a.created_at));
-                for doc in sorted_docs {
+
+                // This will only save the first file of each type in order of their creation
+                let mut unique_files: HashMap<String, File> = HashMap::new();
+                for doc in docs {
+                    unique_files
+                        .entry(doc.task_type.to_string().clone())
+                        .or_insert(doc);
+                }
+                let filtered_docs: Vec<File> = unique_files.into_values().collect();
+                for doc in filtered_docs {
                     let enc_key = supabase_client
                         .fetch_key(doc.document_id.clone())
                         .await

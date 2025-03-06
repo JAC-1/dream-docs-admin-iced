@@ -1,4 +1,5 @@
 #![windows_subsystem = "windows"]
+use std::sync::Arc;
 use std::{collections::HashMap, env, path::PathBuf};
 
 use chrono::{DateTime, Local};
@@ -65,7 +66,8 @@ struct DashboardState {
     password_content: String,
     salt_content: String,
     env_state: HashMap<String, String>,
-    supabase_client: SupabaseQuery,
+    supabase_client: Arc<SupabaseQuery>,
+    turso_query: Arc<TursoQuery>,
     error: Option<String>,
     current_view: View,
     save_root: Option<PathBuf>,
@@ -121,10 +123,9 @@ impl Dashboard {
         )
     }
 
-    fn load_students(env_hash: HashMap<String, String>) -> Task<Message> {
+    fn load_students(supabase_client: Arc<SupabaseQuery>) -> Task<Message> {
         Task::perform(
-            async {
-                let supabase_client = SupabaseQuery::new(Some(env_hash));
+            async move {
                 supabase_client
                     .all_students_info()
                     .await
@@ -138,7 +139,7 @@ impl Dashboard {
     }
 
     fn get_student_docs(
-        supabase_client: SupabaseQuery,
+        supabase_client: Arc<SupabaseQuery>,
         student: StudentProfileData,
     ) -> Task<Message> {
         Task::perform(
@@ -156,7 +157,8 @@ impl Dashboard {
     }
 
     fn get_student_doc(
-        supabase_client: SupabaseQuery,
+        supabase_client: Arc<SupabaseQuery>,
+        turso_query: Arc<TursoQuery>,
         doc_id: String,
         full_file_name: String,
         created_at: DateTime<Local>,
@@ -169,8 +171,10 @@ impl Dashboard {
                     .fetch_key(doc_id.clone())
                     .await
                     .map_err(|e| e.to_string())?;
-                let turso = TursoQuery::new().await;
-                let enc_file = turso.get_file(doc_id).await.map_err(|e| e.to_string())?;
+                let enc_file = turso_query
+                    .get_file(doc_id)
+                    .await
+                    .map_err(|e| e.to_string())?;
                 let decrypter = Decrypter::new(&enc_key, Some(&enc_file), &full_file_name)
                     .map_err(|e| e.to_string())?;
                 let decrypted = decrypter
@@ -193,20 +197,22 @@ impl Dashboard {
     }
 
     fn download_all_docs(
-        supabase_client: SupabaseQuery,
+        supabase_client: Arc<SupabaseQuery>,
+        turso_query: Arc<TursoQuery>,
         docs: Vec<File>,
         student_name: String,
     ) -> Task<Message> {
         Task::perform(
             async move {
                 let mut files_to_save: Vec<FileToSave> = vec![];
-                for doc in docs {
+                let mut sorted_docs = docs.clone();
+                sorted_docs.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+                for doc in sorted_docs {
                     let enc_key = supabase_client
                         .fetch_key(doc.document_id.clone())
                         .await
                         .map_err(|e| e.to_string())?;
-                    let turso = TursoQuery::new().await;
-                    let enc_file = turso
+                    let enc_file = turso_query
                         .get_file(doc.document_id.clone())
                         .await
                         .map_err(|e| e.to_string())?;
@@ -257,7 +263,7 @@ impl Dashboard {
     }
 
     fn update_file_status(
-        supabase_client: SupabaseQuery,
+        supabase_client: Arc<SupabaseQuery>,
         status_string: String,
         doc_id: String,
     ) -> Task<Message> {
@@ -313,14 +319,15 @@ impl Dashboard {
                 match auth_process.try_decrypt_env() {
                     Ok(env) => match auth_process.parse_plain_text_to_hashmap(env) {
                         Ok(env_hash) => {
-                            let supabase = SupabaseQuery::new(Some(env_hash.clone()));
+                            let supabase = Arc::new(SupabaseQuery::new(Some(env_hash.clone())));
+                            let turso = Arc::new(TursoQuery::new_sync(Some(env_hash.clone())));
+                            self.state.turso_query = turso;
                             self.state.supabase_client = supabase;
                             self.state.env_state = env_hash.clone();
                             self.state.is_authed = true;
                             self.state.current_view = View::Students;
                             self.state.loading_message = "Loading students...".to_string();
-                            return Self::load_students(env_hash);
-                            // self.state.error = env_hash.into();
+                            return Self::load_students(self.state.supabase_client.clone());
                         }
                         Err(e) => {
                             self.state.error = Some(e);
@@ -381,6 +388,7 @@ impl Dashboard {
                     self.state.is_loading = true;
                     Self::get_student_doc(
                         self.state.supabase_client.clone(),
+                        self.state.turso_query.clone(),
                         file.document_id,
                         file.file_name,
                         file.created_at,
@@ -433,6 +441,7 @@ impl Dashboard {
                     self.state.is_loading = true;
                     Self::download_all_docs(
                         self.state.supabase_client.clone(),
+                        self.state.turso_query.clone(),
                         self.state.selected_student_docs.clone(),
                         student.display_name.clone(),
                     )

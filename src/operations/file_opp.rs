@@ -56,6 +56,9 @@ impl FileSaver {
     }
 
     pub async fn save_individual(&self, file: FileToSave) -> Result<()> {
+        let dir = self.root.join(&file.display_name);
+        std::fs::create_dir_all(&dir)?;
+
         let raw_path = Path::new(&file.file_name);
         let extension = raw_path
             .extension()
@@ -68,9 +71,27 @@ impl FileSaver {
         let document_type = &file.task_type.to_string();
         let first_name = &file.display_name.split(" ").next().unwrap();
         let last_name = &file.display_name.split(" ").last().unwrap();
-        let file_name = format!("{}({} {})", document_type, first_name, last_name);
-        let dir = self.root.join(&file.display_name);
-        std::fs::create_dir_all(&dir)?;
+        // let file_name = format!("{}({} {})", document_type, first_name, last_name);
+        let file_name = if matches!(file.task_type, TaskType::FamilyImages) {
+            let count = std::fs::read_dir(&dir)?
+                .filter_map(|entry| entry.ok())
+                .filter(|entry| {
+                    entry
+                        .file_name()
+                        .to_string_lossy()
+                        .starts_with("Family Images")
+                })
+                .count();
+            format!(
+                "{}({} {})_{}",
+                document_type,
+                first_name,
+                last_name,
+                count + 1
+            )
+        } else {
+            format!("{}({} {})", document_type, first_name, last_name)
+        };
         // let final_path = dir.join(clean_file_name).with_extension(extension);
         let final_path = dir.join(file_name).with_extension(extension);
         std::fs::write(final_path, file.content)?;

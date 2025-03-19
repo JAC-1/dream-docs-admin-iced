@@ -6,6 +6,6 @@ pub mod turso_opp;
 pub use file_opp::FileSaver;
 pub use file_opp::FileToSave;
 pub use login_opp::LoginAuth;
-pub use secret_opp::Decrypter;
+pub use secret_opp::DecrypterMachine;
 pub use supabase_opp::SupabaseQuery;
 pub use turso_opp::TursoQuery;

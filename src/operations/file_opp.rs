@@ -10,6 +10,7 @@ pub struct FileSaver {
     root: PathBuf,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct FileToSave {
     content: Vec<u8>,

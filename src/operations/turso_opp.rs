@@ -104,13 +104,6 @@ impl TursoQuery {
 
         Ok(file.file)
     }
-
-    // Keep your original async constructor for tests or other use cases
-    pub async fn new(env_hashmap: Option<HashMap<String, String>>) -> Self {
-        let query = Self::new_sync(env_hashmap);
-        let _ = query.connect().await; // Ignore result for simplicity
-        query
-    }
 }
 
 // #[cfg(test)]

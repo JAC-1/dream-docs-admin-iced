@@ -1,16 +1,18 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
-use openssl::rsa::{self, Rsa};
+use openssl::encrypt::Decrypter;
+use openssl::hash::MessageDigest;
+use openssl::pkey::PKey;
+use openssl::rsa::{Padding, Rsa};
 
-
-pub struct Decrypter<'a> {
+pub struct DecrypterMachine<'a> {
     decrypted_key: Vec<u8>,
     encrypted_data: Vec<u8>,
     pub decrypted_data: Vec<u8>,
     full_file_name: &'a str,
 }
 
-impl<'a> Decrypter<'a> {
+impl<'a> DecrypterMachine<'a> {
     /// Create a new `Decrypter` instance.
     ///
     /// # Arguments
@@ -29,13 +31,14 @@ impl<'a> Decrypter<'a> {
         encrypted_data: Option<&'a str>,
         full_file_name: &'a str,
     ) -> Result<Self> {
-        let decrypted_key = Self::decrypt_file_key(encrypted_key)?;
+        let decrypted_key = Self::decrypt_file_key(encrypted_key)
+            .expect("Something went wrong with the file key decruption process");
         let encrypted_data = encrypted_data.map_or_else(
             || Vec::with_capacity(0),
             |data| Self::decode_encrypted_base64(data).unwrap(),
         );
 
-        Ok(Decrypter {
+        Ok(DecrypterMachine {
             decrypted_key,
             encrypted_data,
             decrypted_data: Vec::with_capacity(0),
@@ -67,23 +70,44 @@ impl<'a> Decrypter<'a> {
     /// - The RSA decryption process fails.
     /// - The final key cannot be decoded from base64.
     fn decrypt_file_key(encrypted_key: &str) -> Result<Vec<u8>> {
-        let decoded_test_key = Self::decode_encrypted_base64(encrypted_key)?;
+        // Decode the base64-encoded encrypted key
+        let decoded_test_key = Self::decode_encrypted_base64(encrypted_key)
+            .context("Failed to decode the encrypted key from base64")?;
+        println!("Decoded test key length {}", decoded_test_key.len());
 
+        // Load the private key from the .private file
         let private_str = include_bytes!("../../.private");
+        let rsa = Rsa::private_key_from_pem(private_str)
+            .context("Failed to load the private key from the .private file")?;
+        let pkey = PKey::from_rsa(rsa.clone()).context("Failed to convert RSA key to PKey")?;
 
-        let rsa = Rsa::private_key_from_pem(private_str)?;
-        let mut rsa_buffer = vec![0; rsa.size() as usize];
-        let decrypted_test_key_length = rsa.private_decrypt(
-            &decoded_test_key,
-            rsa_buffer.as_mut_slice(),
-            rsa::Padding::PKCS1_OAEP,
-        )?;
+        // Initialize the decrypter with the private key
+        let mut decrypter = Decrypter::new(&pkey)
+            .context("Failed to initialize the decrypter with the private key")?;
 
-        rsa_buffer.truncate(decrypted_test_key_length);
-        let actual_key = BASE64_STANDARD.decode(&rsa_buffer)?;
-        Ok(actual_key)
-    }
+        // Set the RSA padding and message digest
+        decrypter
+            .set_rsa_padding(Padding::PKCS1_OAEP)
+            .context("Failed to set RSA padding to PKCS1_OAEP")?;
+        decrypter
+            .set_rsa_oaep_md(MessageDigest::sha256())
+            .context("Failed to set RSA-OAEP message digest to SHA-256")?;
 
+        // Decrypt the key
+        let mut decrypted = vec![0; rsa.size() as usize];
+        let decrypted_len = decrypter
+            .decrypt(&decoded_test_key, &mut decrypted)
+            .context("Failed to decrypt the key")?;
+        decrypted.truncate(decrypted_len);
+
+        // Decode the actual key from base64
+        // let actual_key = BASE64_STANDARD
+        //     .decode(&decrypted)
+        //     .context("Failed to decode the actual key from base64")?;
+
+        println!("Decrypted key length {}", decrypted.len());
+        Ok(decrypted)
+    } //
     /// Decode a base64-encoded string.
     ///
     /// # Arguments
@@ -157,7 +181,7 @@ impl<'a> Decrypter<'a> {
         // The decrypted data is then truncated to the actual decrypted length, as the original encrypted_data length includes padding.
         decrypted_data.truncate(count + rest);
 
-        Ok(Decrypter {
+        Ok(DecrypterMachine {
             decrypted_key: self.decrypted_key.clone(),
             encrypted_data: Vec::default(),
             decrypted_data,

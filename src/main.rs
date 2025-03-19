@@ -1,6 +1,6 @@
 #![windows_subsystem = "windows"]
 use std::sync::Arc;
-use std::{collections::HashMap, env, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf};
 
 use chrono::{DateTime, Local};
 use iced::widget::Container;
@@ -17,33 +17,15 @@ use crate::types::TaskType;
 use components::{navbar, views};
 use custom_settings::window_settings;
 use models::supabase_models::*;
-use operations::{Decrypter, FileSaver, FileToSave, LoginAuth, SupabaseQuery, TursoQuery};
+use operations::{DecrypterMachine, FileSaver, FileToSave, LoginAuth, SupabaseQuery, TursoQuery};
 use types::FileStatus;
 
 pub static NOTO_SANS_JP: Font = Font::with_name("Noto Sans JP");
-const ENV_FILE: &str = include_str!("../.env");
-fn parse_env(env_str: &str) -> HashMap<String, String> {
-    env_str
-        .lines()
-        .filter(|line| !line.trim().is_empty() && !line.starts_with('#')) // Ignore comments and empty lines
-        .filter_map(|line| {
-            let mut parts = line.splitn(2, '=');
-            Some((
-                parts.next()?.trim().to_string(),
-                parts.next()?.trim().to_string(),
-            ))
-        })
-        .collect()
-}
 
-const ENC_ENV_FILE_1: &[u8; 614] = include_bytes!("../h0DR0.env.enc");
-const ENC_ENV_FILE_2: &[u8; 614] = include_bytes!("../h0DR0.env.enc");
+const ENC_ENV_FILE_1: &[u8; 614] = include_bytes!("../07VDB.env.enc");
+const ENC_ENV_FILE_2: &[u8; 614] = include_bytes!("../07VDB.env.enc");
 
 fn main() -> iced::Result {
-    let env_vars = parse_env(ENV_FILE);
-    for (key, value) in env_vars {
-        env::set_var(key, value);
-    }
     let font_bytes_regular = include_bytes!("fonts/NotoSansJP-Regular.ttf").as_slice();
     let font_bytes_bold = include_bytes!("fonts/NotoSansJP-Bold.ttf").as_slice();
     iced::application("Dashboard", Dashboard::update, Dashboard::view)
@@ -175,7 +157,7 @@ impl Dashboard {
                     .get_file(doc_id)
                     .await
                     .map_err(|e| e.to_string())?;
-                let decrypter = Decrypter::new(&enc_key, Some(&enc_file), &full_file_name)
+                let decrypter = DecrypterMachine::new(&enc_key, Some(&enc_file), &full_file_name)
                     .map_err(|e| e.to_string())?;
                 let decrypted = decrypter
                     .decrypt_symetric_file()
@@ -223,8 +205,9 @@ impl Dashboard {
                         .get_file(doc.document_id.clone())
                         .await
                         .map_err(|e| e.to_string())?;
-                    let decrypter = Decrypter::new(&enc_key, Some(&enc_file), &doc.file_name)
-                        .map_err(|e| e.to_string())?;
+                    let decrypter =
+                        DecrypterMachine::new(&enc_key, Some(&enc_file), &doc.file_name)
+                            .map_err(|e| e.to_string())?;
                     let decrypted = decrypter
                         .decrypt_symetric_file()
                         .map_err(|e| e.to_string())?

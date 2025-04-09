@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use openssl::encrypt::Decrypter;
 use openssl::hash::MessageDigest;
@@ -75,14 +75,12 @@ impl<'a> DecrypterMachine<'a> {
             anyhow::format_err!("Error decoding the encrypted key from base64: {}", e)
         })?;
         println!("Decoded test key length {}", decoded_test_key.len());
-
-        // // TODO: Should get private key from state
-        // let pem_key = Self::format_pem_key(&private)
-        //     .map_err(|e| anyhow::format_err!("Error formatting the private key: {}", e))?;
-        let pem_key = include_bytes!("../../.private");
-        // dbg!("Private key length {}", pem_key.len());
-        let rsa = Rsa::private_key_from_pem(pem_key)
-            .map_err(|e| anyhow::format_err!("Error loading the private key from PEM: {}", e))?;
+        let private = private.trim();
+        let pem_key = Self::format_pem_key(&private)
+            .map_err(|e| anyhow::format_err!("Error formatting the private key: {}", e))?;
+        let rsa = Rsa::private_key_from_pem(pem_key.as_bytes()).map_err(|e| {
+            anyhow::format_err!("Error loading the private key from PEM: {}, {}", e, pem_key)
+        })?;
         let pkey = PKey::from_rsa(rsa.clone())
             .map_err(|e| anyhow::format_err!("Error converting RSA key to PKey: {}", e))?;
 
@@ -199,8 +197,8 @@ impl<'a> DecrypterMachine<'a> {
     /// Ensures the private key is properly formatted as PEM.
     fn format_pem_key(key: &str) -> Result<String> {
         const LINE_LENGTH: usize = 64;
-        let header = "-----BEGIN PRIVATE KEY-----";
-        let footer = "-----END PRIVATE KEY-----";
+        let header = "-----BEGIN RSA PRIVATE KEY-----";
+        let footer = "-----END RSA PRIVATE KEY-----";
 
         // Reformat the body with proper line breaks
         let formatted_body = key
@@ -213,14 +211,6 @@ impl<'a> DecrypterMachine<'a> {
             .join("\n");
 
         let formatted_key = format!("{}\n{}\n{}", header, formatted_body, footer);
-
-        // Save the formatted PEM key to a debug file
-        let debug_file_path = "debug_formatted_pem_key.pem";
-        let mut file = File::create(debug_file_path)
-            .map_err(|e| anyhow::format_err!("Failed to create debug file: {:?}", e))?;
-        file.write_all(formatted_key.as_bytes())
-            .map_err(|e| anyhow::format_err!("Failed to write to debug file: {:?}", e))?;
-        println!("Formatted PEM key saved to {}", debug_file_path);
 
         Ok(formatted_key)
     }

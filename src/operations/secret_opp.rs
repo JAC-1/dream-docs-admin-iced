@@ -30,9 +30,9 @@ impl<'a> DecrypterMachine<'a> {
         encrypted_key: &'a str,
         encrypted_data: Option<&'a str>,
         full_file_name: &'a str,
+        private: String,
     ) -> Result<Self> {
-        let decrypted_key = Self::decrypt_file_key(encrypted_key)
-            .expect("Something went wrong with the file key decruption process");
+        let decrypted_key = Self::decrypt_file_key(encrypted_key, private)?;
         let encrypted_data = encrypted_data.map_or_else(
             || Vec::with_capacity(0),
             |data| Self::decode_encrypted_base64(data).unwrap(),
@@ -69,45 +69,52 @@ impl<'a> DecrypterMachine<'a> {
     /// - The private key cannot be read from the `.private` file.
     /// - The RSA decryption process fails.
     /// - The final key cannot be decoded from base64.
-    fn decrypt_file_key(encrypted_key: &str) -> Result<Vec<u8>> {
+    fn decrypt_file_key(encrypted_key: &str, private: String) -> Result<Vec<u8>> {
         // Decode the base64-encoded encrypted key
-        let decoded_test_key = Self::decode_encrypted_base64(encrypted_key)
-            .context("Failed to decode the encrypted key from base64")?;
+        let decoded_test_key = Self::decode_encrypted_base64(encrypted_key).map_err(|e| {
+            anyhow::format_err!("Error decoding the encrypted key from base64: {}", e)
+        })?;
         println!("Decoded test key length {}", decoded_test_key.len());
 
-        // Load the private key from the .private file
-        let private_str = include_bytes!("../../.private");
-        let rsa = Rsa::private_key_from_pem(private_str)
-            .context("Failed to load the private key from the .private file")?;
-        let pkey = PKey::from_rsa(rsa.clone()).context("Failed to convert RSA key to PKey")?;
+        // // TODO: Should get private key from state
+        // let pem_key = Self::format_pem_key(&private)
+        //     .map_err(|e| anyhow::format_err!("Error formatting the private key: {}", e))?;
+        let pem_key = include_bytes!("../../.private");
+        // dbg!("Private key length {}", pem_key.len());
+        let rsa = Rsa::private_key_from_pem(pem_key)
+            .map_err(|e| anyhow::format_err!("Error loading the private key from PEM: {}", e))?;
+        let pkey = PKey::from_rsa(rsa.clone())
+            .map_err(|e| anyhow::format_err!("Error converting RSA key to PKey: {}", e))?;
 
         // Initialize the decrypter with the private key
-        let mut decrypter = Decrypter::new(&pkey)
-            .context("Failed to initialize the decrypter with the private key")?;
+        let mut decrypter = Decrypter::new(&pkey).map_err(|e| {
+            anyhow::format_err!(
+                "Error initializing the decrypter with the private key: {}",
+                e
+            )
+        })?;
 
         // Set the RSA padding and message digest
         decrypter
             .set_rsa_padding(Padding::PKCS1_OAEP)
-            .context("Failed to set RSA padding to PKCS1_OAEP")?;
+            .map_err(|e| anyhow::format_err!("Error setting RSA padding to PKCS1_OAEP: {}", e))?;
         decrypter
             .set_rsa_oaep_md(MessageDigest::sha256())
-            .context("Failed to set RSA-OAEP message digest to SHA-256")?;
+            .map_err(|e| {
+                anyhow::format_err!("Error setting RSA-OAEP message digest to SHA-256: {}", e)
+            })?;
 
         // Decrypt the key
         let mut decrypted = vec![0; rsa.size() as usize];
         let decrypted_len = decrypter
             .decrypt(&decoded_test_key, &mut decrypted)
-            .context("Failed to decrypt the key")?;
+            .map_err(|e| anyhow::format_err!("Error decrypting the key: {}", e))?;
         decrypted.truncate(decrypted_len);
-
-        // Decode the actual key from base64
-        // let actual_key = BASE64_STANDARD
-        //     .decode(&decrypted)
-        //     .context("Failed to decode the actual key from base64")?;
 
         println!("Decrypted key length {}", decrypted.len());
         Ok(decrypted)
-    } //
+    }
+
     /// Decode a base64-encoded string.
     ///
     /// # Arguments
@@ -187,6 +194,35 @@ impl<'a> DecrypterMachine<'a> {
             decrypted_data,
             full_file_name: self.full_file_name,
         })
+    }
+
+    /// Ensures the private key is properly formatted as PEM.
+    fn format_pem_key(key: &str) -> Result<String> {
+        const LINE_LENGTH: usize = 64;
+        let header = "-----BEGIN PRIVATE KEY-----";
+        let footer = "-----END PRIVATE KEY-----";
+
+        // Reformat the body with proper line breaks
+        let formatted_body = key
+            .as_bytes()
+            .chunks(LINE_LENGTH)
+            .map(|chunk| {
+                std::str::from_utf8(chunk).map_err(|e| anyhow::format_err!("UTF-8 error: {}", e))
+            })
+            .collect::<Result<Vec<_>>>()?
+            .join("\n");
+
+        let formatted_key = format!("{}\n{}\n{}", header, formatted_body, footer);
+
+        // Save the formatted PEM key to a debug file
+        let debug_file_path = "debug_formatted_pem_key.pem";
+        let mut file = File::create(debug_file_path)
+            .map_err(|e| anyhow::format_err!("Failed to create debug file: {:?}", e))?;
+        file.write_all(formatted_key.as_bytes())
+            .map_err(|e| anyhow::format_err!("Failed to write to debug file: {:?}", e))?;
+        println!("Formatted PEM key saved to {}", debug_file_path);
+
+        Ok(formatted_key)
     }
 }
 

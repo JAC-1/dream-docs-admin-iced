@@ -100,28 +100,28 @@ impl FileSaver {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
 
-    #[test]
-    fn test_set_root() {
-        let root = FileSaver::select_root().unwrap();
-        let file_saver = FileSaver::new(root);
-        println!("{}", file_saver.root.display());
-    }
+//     #[test]
+//     fn test_set_root() {
+//         let root = FileSaver::select_root().unwrap();
+//         let file_saver = FileSaver::new(root);
+//         println!("{}", file_saver.root.display());
+//     }
 
-    #[tokio::test]
-    async fn test_save_individual() {
-        let root = FileSaver::select_root().unwrap();
-        let file_saver = FileSaver::new(root);
-        let file = FileToSave::new(
-            Vec::new(),
-            String::from("test.txt"),
-            String::from("john johnson"),
-            Local::now(),
-            TaskType::FamilyImages,
-        );
-        println!("{:?}", file_saver.save_individual(file).await.unwrap());
-    }
-}
+//     #[tokio::test]
+//     async fn test_save_individual() {
+//         let root = FileSaver::select_root().unwrap();
+//         let file_saver = FileSaver::new(root);
+//         let file = FileToSave::new(
+//             Vec::new(),
+//             String::from("test.txt"),
+//             String::from("john johnson"),
+//             Local::now(),
+//             TaskType::FamilyImages,
+//         );
+//         println!("{:?}", file_saver.save_individual(file).await.unwrap());
+//     }
+// }

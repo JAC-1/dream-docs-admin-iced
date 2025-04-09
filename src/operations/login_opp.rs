@@ -80,7 +80,7 @@ impl LoginAuth {
             if line.is_empty() {
                 continue;
             }
-            let mut split = line.split("=");
+            let mut split = line.splitn(2, "=");
             let key = split
                 .next()
                 .ok_or_else(|| "Missing key in line".to_string())?;
@@ -89,7 +89,7 @@ impl LoginAuth {
                 .ok_or_else(|| "Missing value in line".to_string())?;
             env_map.insert(key.to_string(), value.to_string());
         }
+
         Ok(env_map)
-        // Ok(plain_text)
     }
 }

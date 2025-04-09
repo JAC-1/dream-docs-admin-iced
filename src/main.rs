@@ -22,8 +22,8 @@ use types::FileStatus;
 
 pub static NOTO_SANS_JP: Font = Font::with_name("Noto Sans JP");
 
-const ENC_ENV_FILE_1: &[u8; 614] = include_bytes!("../07VDB.env.enc");
-const ENC_ENV_FILE_2: &[u8; 614] = include_bytes!("../07VDB.env.enc");
+const ENC_ENV_FILE_1: &[u8; 2215] = include_bytes!("../s4nrt.env.enc");
+const ENC_ENV_FILE_2: &[u8; 2215] = include_bytes!("../s4nrt.env.enc");
 
 fn main() -> iced::Result {
     let font_bytes_regular = include_bytes!("fonts/NotoSansJP-Regular.ttf").as_slice();
@@ -146,6 +146,7 @@ impl Dashboard {
         created_at: DateTime<Local>,
         student_name: String,
         task_type: TaskType,
+        private: String,
     ) -> Task<Message> {
         Task::perform(
             async move {
@@ -157,8 +158,9 @@ impl Dashboard {
                     .get_file(doc_id)
                     .await
                     .map_err(|e| e.to_string())?;
-                let decrypter = DecrypterMachine::new(&enc_key, Some(&enc_file), &full_file_name)
-                    .map_err(|e| e.to_string())?;
+                let decrypter =
+                    DecrypterMachine::new(&enc_key, Some(&enc_file), &full_file_name, private)
+                        .map_err(|e| e.to_string())?;
                 let decrypted = decrypter
                     .decrypt_symetric_file()
                     .map_err(|e| e.to_string())?
@@ -183,6 +185,7 @@ impl Dashboard {
         turso_query: Arc<TursoQuery>,
         docs: Vec<File>,
         student_name: String,
+        private: String,
     ) -> Task<Message> {
         Task::perform(
             async move {
@@ -205,9 +208,13 @@ impl Dashboard {
                         .get_file(doc.document_id.clone())
                         .await
                         .map_err(|e| e.to_string())?;
-                    let decrypter =
-                        DecrypterMachine::new(&enc_key, Some(&enc_file), &doc.file_name)
-                            .map_err(|e| e.to_string())?;
+                    let decrypter = DecrypterMachine::new(
+                        &enc_key,
+                        Some(&enc_file),
+                        &doc.file_name,
+                        private.clone(),
+                    )
+                    .map_err(|e| e.to_string())?;
                     let decrypted = decrypter
                         .decrypt_symetric_file()
                         .map_err(|e| e.to_string())?
@@ -234,9 +241,15 @@ impl Dashboard {
         Task::perform(
             async move {
                 let file_saver = FileSaver::new(root);
-                file_saver.save_individual(file).await.unwrap()
+                file_saver
+                    .save_individual(file)
+                    .await
+                    .map_err(|e| e.to_string())
             },
-            |_| Message::SetLoading(false),
+            |result| match result {
+                Ok(_) => Message::SetLoading(false),
+                Err(error) => Message::SetError(Some(error)),
+            },
         )
     }
 
@@ -245,10 +258,17 @@ impl Dashboard {
             async move {
                 for file in files {
                     let file_saver = FileSaver::new(root.clone());
-                    file_saver.save_individual(file).await.unwrap();
+                    file_saver
+                        .save_individual(file)
+                        .await
+                        .map_err(|e| e.to_string())?;
                 }
+                Ok(())
             },
-            |_| Message::SetLoading(false),
+            |result| match result {
+                Ok(_) => Message::SetLoading(false),
+                Err(error) => Message::SetError(Some(error)),
+            },
         )
     }
 
@@ -373,18 +393,26 @@ impl Dashboard {
             }
             Message::FetchStudentDoc(file) => {
                 if let Some(selected_student) = &self.state.selected_student {
-                    self.state.loading_message =
-                        "Fetching and preparing selected document...".to_string();
-                    self.state.is_loading = true;
-                    Self::get_student_doc(
-                        self.state.supabase_client.clone(),
-                        self.state.turso_query.clone(),
-                        file.document_id,
-                        file.file_name,
-                        file.created_at,
-                        selected_student.display_name.clone(),
-                        file.task_type,
-                    )
+                    if let Some(secret_key) = self.state.env_state.get("SECRET_KEY") {
+                        self.state.loading_message =
+                            "Fetching and preparing selected document...".to_string();
+                        self.state.is_loading = true;
+                        Self::get_student_doc(
+                            self.state.supabase_client.clone(),
+                            self.state.turso_query.clone(),
+                            file.document_id,
+                            file.file_name,
+                            file.created_at,
+                            selected_student.display_name.clone(),
+                            file.task_type,
+                            secret_key.clone(),
+                        )
+                    } else {
+                        self.state.error = Some(
+                            "Error: A key is possibly missing in environment state.".to_string(),
+                        );
+                        Task::none()
+                    }
                 } else {
                     self.state.error =
                         Some("Error decrypting and preparing file for download.".to_string());
@@ -426,15 +454,23 @@ impl Dashboard {
             }
             Message::DownloadAllDocs => match &self.state.selected_student {
                 Some(student) => {
-                    self.state.loading_message =
-                        "Downloading and processing all docs ...".to_string();
-                    self.state.is_loading = true;
-                    Self::download_all_docs(
-                        self.state.supabase_client.clone(),
-                        self.state.turso_query.clone(),
-                        self.state.selected_student_docs.clone(),
-                        student.display_name.clone(),
-                    )
+                    if let Some(secret_key) = self.state.env_state.get("SECRET_KEY") {
+                        self.state.loading_message =
+                            "Downloading and processing all docs ...".to_string();
+                        self.state.is_loading = true;
+                        Self::download_all_docs(
+                            self.state.supabase_client.clone(),
+                            self.state.turso_query.clone(),
+                            self.state.selected_student_docs.clone(),
+                            student.display_name.clone(),
+                            secret_key.clone(),
+                        )
+                    } else {
+                        self.state.error = Some(
+                            "Error: A key is possibly missing in environment state.".to_string(),
+                        );
+                        Task::none()
+                    }
                 }
                 None => {
                     self.state.is_loading = false;
